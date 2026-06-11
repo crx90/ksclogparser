@@ -254,11 +254,12 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     </div>
     <div class="file-chips" id="analysis-files-list"></div>
   </div>
-  <div class="grid-4 section">
+  <div class="grid-4 section" style="grid-template-columns:repeat(5,1fr)">
     <div class="stat-box"><div class="stat-label">Gesamt-Pulls</div><div class="stat-value gold" id="an-total-pulls">0</div><div class="stat-sub" id="an-date-range">&#8212;</div></div>
     <div class="stat-box"><div class="stat-label">Kills</div><div class="stat-value green" id="an-kills">0</div><div class="stat-sub" id="an-kill-rate">Kill-Rate &#8212;</div></div>
     <div class="stat-box"><div class="stat-label">&#216; Pull-Dauer</div><div class="stat-value" id="an-avg-duration">&#8212;</div><div class="stat-sub">Schnitt aller Pulls</div></div>
     <div class="stat-box"><div class="stat-label">Gefilterte Tode</div><div class="stat-value red" id="an-total-deaths">0</div><div class="stat-sub" id="an-deaths-per-pull">&#216; &#8212; / Pull</div></div>
+    <div class="stat-box"><div class="stat-label">&#216; Rezz-Zeitpunkt</div><div class="stat-value" id="an-avg-rezz">&#8212;</div><div class="stat-sub" id="an-avg-rezz-sub">Keine Rezz-Daten</div></div>
   </div>
   <div class="grid-2 section">
     <div class="card">
@@ -416,6 +417,28 @@ const DEFAULT_COOLDOWNS = [
   ['Obsidian Scales','major'],['Renewing Blaze','major'],['Time Spiral','major'],
 ];
 
+// Resurrection spells — used to calculate time-to-rez
+const REZZ_SPELLS = new Set([
+  // Druid
+  'Rebirth','Mass Resurrection',
+  // Paladin
+  'Redemption','Mass Resurrection',
+  // Priest
+  'Resurrection','Mass Resurrection',
+  // Shaman
+  'Ancestral Spirit','Mass Resurrection',
+  // Warlock (Soulstone — pre-applied, target uses it on death)
+  'Soulstone',
+  // Death Knight
+  'Raise Ally',
+  // Monk
+  'Resuscitate',
+  // Evoker
+  'Return',
+  // Generic
+  'Mass Resurrection',
+]);
+
 // Raid-wide CDs (affect multiple players — shown in pull CD timeline)
 const DEFAULT_RAID_CDS = [
   'Anti-Magic Zone','Rallying Cry','Darkness','Power Word: Barrier',
@@ -432,12 +455,17 @@ const DEFAULT_RAID_CDS = [
 ];
 
 let defCooldowns = new Map(DEFAULT_COOLDOWNS);
+const playerSpecs = {};
 let raidCDSet = new Set(DEFAULT_RAID_CDS);
 
 function parseTimestamp(str) {
   const m = str.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\.(\d+)/);
   if (!m) return 0;
-  const [,mo,dy,yr,hh,mm,ss,ms] = m.map(Number);
+  const [,mo,dy,yr,hh,mm,ss] = m.map(Number);
+  // WoW uses variable-length fractional seconds (.179 = 179ms, .1792 = 179ms)
+  // Must normalize to exactly 3 decimal places (milliseconds)
+  const msStr = m[7];
+  const ms = Math.round(parseInt(msStr) / Math.pow(10, msStr.length - 3));
   return Date.UTC(yr,mo-1,dy,hh,mm,ss,ms);
 }
 
@@ -472,10 +500,10 @@ let bytesProcessed = 0, totalBytes = 0, linesProcessed = 0;
 const RELEVANT = new Set([
   'ENCOUNTER_START','ENCOUNTER_END','UNIT_DIED',
   'SPELL_DAMAGE','SPELL_PERIODIC_DAMAGE','RANGE_DAMAGE',
-  'SWING_DAMAGE','ENVIRONMENTAL_DAMAGE','SPELL_INSTAKILL',
+  'SWING_DAMAGE','ENVIRONMENTAL_DAMAGE','SPELL_INSTAKILL','DAMAGE_SPLIT',
   'SPELL_HEAL','SPELL_PERIODIC_HEAL',
   'SPELL_AURA_APPLIED','SPELL_AURA_APPLIED_DOSE','SPELL_AURA_REMOVED',
-  'SPELL_CAST_SUCCESS'
+  'SPELL_CAST_SUCCESS','COMBATANT_INFO'
 ]);
 
 function addToContext(destGUID, entry, now) {
@@ -492,9 +520,10 @@ function addToContext(destGUID, entry, now) {
 function processLine(line) {
   linesProcessed++;
   if (line.indexOf('ENCOUNTER_') === -1 && line.indexOf('UNIT_DIED') === -1 &&
-      line.indexOf('_DAMAGE') === -1 && line.indexOf('INSTAKILL') === -1 &&
+      line.indexOf('_DAMAGE') === -1 && line.indexOf('DAMAGE_SPLIT') === -1 && line.indexOf('INSTAKILL') === -1 &&
       line.indexOf('_HEAL') === -1 && line.indexOf('AURA_APPLIED') === -1 &&
-      line.indexOf('AURA_REMOVED') === -1 && line.indexOf('CAST_SUCCESS') === -1) return;
+      line.indexOf('AURA_REMOVED') === -1 && line.indexOf('CAST_SUCCESS') === -1 &&
+      line.indexOf('COMBATANT_INFO') === -1) return;
 
   const spaceIdx = line.indexOf('  ');
   if (spaceIdx === -1) return;
@@ -516,6 +545,7 @@ function processLine(line) {
       raidCDs: [],  // {offsetMs, caster, spell, spellId}
       playerCasts: [],  // {offsetMs, playerName, spell, spellId, runicPower}
       buffEvents: [],    // {ts, type, destName, spell, stack}
+      rezzEvents: [],   // {offsetMs, targetName, targetGUID, caster, spell}
     };
   } else if (event === 'ENCOUNTER_END' && currentPull) {
     currentPull.endTime = timestamp;
@@ -566,6 +596,10 @@ function processLine(line) {
     // srcGUID must be a real player
     const srcGUID = parts[1], srcName = parts[2], spellId = parts[9], spellName = parts[10];
     const isRealPlayer = srcGUID && srcGUID.startsWith('Player-');
+    if (isRealPlayer) {
+      const gk='__guid__'+srcGUID;
+      if (playerSpecs[gk] && !playerSpecs[srcName]) playerSpecs[srcName]=playerSpecs[gk];
+    }
     if (isRealPlayer && currentPull) {
       const offs = timestamp - currentPull.startTime;
       // Track raid CDs
@@ -578,11 +612,7 @@ function processLine(line) {
         }
       }
       // Track ALL player casts for APL analysis
-      // Extract runic power + runes from advanced log (parts[14]=currentHP ... we need resource fields)
-      // Advanced log format after destGUID fields: unitHP,unitMaxHP,unitAttackPower,unitSpellPower,
-      //   unitArmorReduction,unitFacing,X,Y,mapID,facing,level + resource1amount,resource1type,...
-      // parts[12] onward for src unit info when src=dest
-      const runicPower = parseInt(parts[17])||null;   // position varies, best effort
+      const runicPower = parseInt(parts[17])||null;
       currentPull.playerCasts.push({
         offsetMs: offs,
         playerName: srcName,
@@ -590,6 +620,36 @@ function processLine(line) {
         spellId,
         runicPower,
       });
+      // Track resurrections
+      if (spellName && REZZ_SPELLS.has(spellName)) {
+        const destGUID = parts[5], destName = parts[6];
+        if (destGUID && destGUID.startsWith('Player-')) {
+          currentPull.rezzEvents.push({
+            offsetMs: offs,
+            targetName: destName,
+            targetGUID: destGUID,
+            caster: srcName,
+            spell: spellName,
+          });
+        }
+      }
+    }
+  } else if (event === 'COMBATANT_INFO') {
+    // parts[1]=playerGUID, parts[25]=specId
+    const ciGUID = parts[1], ciSpec = parseInt(parts[25])||0;
+    if (ciGUID && ciGUID.startsWith('Player-') && ciSpec > 0) {
+      playerSpecs['__guid__'+ciGUID] = ciSpec;
+    }
+  } else if (event === 'DAMAGE_SPLIT') {
+    // Damage split between player and pet (Soul Link etc.)
+    // srcGUID=player[1], destGUID=pet[5], but player HP is at parts[13] onward
+    const playerGUID = parts[1], playerName = parts[2];
+    if (playerGUID && playerGUID.startsWith('Player-') && currentPull) {
+      const amount = parseInt(parts[37])||0;
+      const spellName = parts[10], spellId = parts[9];
+      lastDamageTaken[playerGUID] = { spell:spellName, srcName:parts[2], spellId };
+      addToContext(playerGUID, { ts:timestamp, type:'dmg', srcName:playerName,
+        spell:spellName, spellId, amount, currentHP:0, maxHP:0 }, timestamp);
     }
   } else if (event === 'SWING_DAMAGE') {
     const destGUID = parts[5], srcName = parts[2];
@@ -649,6 +709,7 @@ self.onmessage = function(e) {
     bytesProcessed = 0; linesProcessed = 0; totalBytes = fileSize;
     Object.keys(lastDamageTaken).forEach(k => delete lastDamageTaken[k]);
     Object.keys(contextBuffer).forEach(k => delete contextBuffer[k]);
+    Object.keys(playerSpecs).forEach(k => delete playerSpecs[k]);
     if (cooldowns) defCooldowns = new Map(cooldowns);
     if (e.data.raidCDs) raidCDSet = new Set(e.data.raidCDs);
   } else if (type === 'chunk') {
@@ -657,7 +718,7 @@ self.onmessage = function(e) {
     const pct = totalBytes > 0 ? Math.round(bytesProcessed/totalBytes*100) : 0;
     self.postMessage({ type:'progress', pct, bytesProcessed, linesProcessed, pullsFound: pulls.length });
   } else if (type === 'end') {
-    self.postMessage({ type:'done', pulls: finalize() });
+    self.postMessage({ type:'done', pulls: finalize(), playerSpecs: Object.assign({}, playerSpecs) });
   }
 };
 
@@ -731,6 +792,16 @@ function formatDuration(ms) {
   if (!ms || ms <= 0) return '--';
   const s = Math.floor(ms/1000), m = Math.floor(s/60);
   return m > 0 ? m+'m '+String(s%60).padStart(2,'0')+'s' : s+'s';
+}
+function formatFightTime(ms) {
+  // Shows fight time with milliseconds for death recap precision
+  if (ms == null || ms < 0) return '--';
+  const totalMs = Math.round(ms);
+  const m = Math.floor(totalMs / 60000);
+  const s = Math.floor((totalMs % 60000) / 1000);
+  const msRem = totalMs % 1000;
+  if (m > 0) return m+'m '+String(s).padStart(2,'0')+'.'+String(msRem).padStart(3,'0')+'s';
+  return s+'.'+String(msRem).padStart(3,'0')+'s';
 }
 function formatOffset(ms) {
   if (ms == null || ms < 0) return '--';
@@ -867,12 +938,15 @@ function deltaParseLines(lines) {
   const cdMap = getCooldownMap();
   const RELEVANT = new Set(['ENCOUNTER_START','ENCOUNTER_END','UNIT_DIED',
     'SPELL_DAMAGE','SPELL_PERIODIC_DAMAGE','RANGE_DAMAGE','SWING_DAMAGE',
-    'ENVIRONMENTAL_DAMAGE','SPELL_INSTAKILL','SPELL_HEAL','SPELL_PERIODIC_HEAL','SPELL_AURA_APPLIED']);
+    'ENVIRONMENTAL_DAMAGE','SPELL_INSTAKILL','SPELL_HEAL','SPELL_PERIODIC_HEAL',
+    'SPELL_AURA_APPLIED','SPELL_CAST_SUCCESS']);
+  const raidSet = getRaidCDSet();
   for (const rawLine of lines) {
     const line = rawLine.trim(); if (!line) continue;
     if (line.indexOf('ENCOUNTER_')===-1 && line.indexOf('UNIT_DIED')===-1 &&
         line.indexOf('_DAMAGE')===-1 && line.indexOf('INSTAKILL')===-1 &&
-        line.indexOf('_HEAL')===-1 && line.indexOf('AURA_APPLIED')===-1) continue;
+        line.indexOf('_HEAL')===-1 && line.indexOf('AURA_APPLIED')===-1 &&
+        line.indexOf('CAST_SUCCESS')===-1) continue;
     const si=line.indexOf('  '); if(si===-1) continue;
     const ts=parseTimestampUI(line.substring(0,si)); if(!ts) continue;
     const rest=line.substring(si+2);
@@ -883,7 +957,8 @@ function deltaParseLines(lines) {
     if(ev==='ENCOUNTER_START') {
       if(state.currentPull){state.currentPull.endTime=ts;state.currentPull.success=false;mergeLivePull({...state.currentPull});}
       state.currentPull={bossName:parts[2],startTime:ts,endTime:null,success:false,deaths:[],
-        events:[{type:'start',offsetMs:0,text:'Pull gestartet',detail:parts[2]}]};
+        events:[{type:'start',offsetMs:0,text:'Pull gestartet',detail:parts[2]}],
+        raidCDs:[], playerCasts:[]};
     } else if(ev==='ENCOUNTER_END'&&state.currentPull) {
       state.currentPull.endTime=ts; state.currentPull.success=parts[5]==='1';
       state.currentPull.events.push({type:state.currentPull.success?'end-kill':'end-wipe',
@@ -907,6 +982,18 @@ function deltaParseLines(lines) {
         if(!state.contextBuffer[dg]) state.contextBuffer[dg]=[];
         state.contextBuffer[dg].push({ts,type:'cd',srcName:parts[2],spell:sn,amount:0,currentHP:0,maxHP:0,cdCat:cat});
         pruneCtx(state.contextBuffer[dg],ts,DEATH_CTX);
+      }
+    } else if(ev==='SPELL_CAST_SUCCESS') {
+      const srcGUID=parts[1],srcName=parts[2],spellId=parts[9],spellName=parts[10];
+      if(srcGUID&&srcGUID.startsWith('Player-')&&state.currentPull) {
+        const offs=ts-state.currentPull.startTime;
+        // Raid CDs
+        if(spellName&&raidSet.has(spellName)) {
+          const isDup=state.currentPull.raidCDs.some(r=>r.spell===spellName&&r.caster===srcName&&Math.abs(r.offsetMs-offs)<2000);
+          if(!isDup) state.currentPull.raidCDs.push({offsetMs:offs,caster:srcName,spell:spellName,spellId});
+        }
+        // Player casts for APL
+        state.currentPull.playerCasts.push({offsetMs:offs,playerName:srcName,spell:spellName,spellId});
       }
     } else {
       const dg=parts[5],sn=parts[10]||(ev==='SWING_DAMAGE'?'Melee':'?'),src=parts[2];
@@ -948,7 +1035,9 @@ function stopLive() {
 function parseTimestampUI(str) {
   const m=str.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\.(\d+)/);
   if(!m) return 0;
-  const[,mo,dy,yr,hh,mm,ss,ms]=m.map(Number);
+  const[,mo,dy,yr,hh,mm,ss]=m.map(Number);
+  const msStr=m[7];
+  const ms=Math.round(parseInt(msStr)/Math.pow(10,msStr.length-3));
   return Date.UTC(yr,mo-1,dy,hh,mm,ss,ms);
 }
 function splitCSVUI(line) {
@@ -1026,7 +1115,7 @@ function showLiveDeathContext(pullNum,deathIdx) {
 
 // ── ANALYSIS MODE ────────────────────────────────────────────────
 let analysisFileMeta=[],analysisPulls=[];
-let selectedPullNum=null,selectedDeathIdx=null,selectedPlayer=null;
+let selectedPullNum=null,selectedDeathIdx=null,selectedPlayer=null,selectedCause=null;
 
 function openAnalysisFiles(){document.getElementById('analysis-file-input').click();}
 async function handleAnalysisFiles(evt) {
@@ -1055,7 +1144,7 @@ async function handleAnalysisFiles(evt) {
   evt.target.value=''; rebuildAnalysis();
 }
 function clearAnalysis(){
-  analysisFileMeta=[];analysisPulls=[];selectedPullNum=null;selectedDeathIdx=null;selectedPlayer=null;
+  analysisFileMeta=[];analysisPulls=[];selectedPullNum=null;selectedDeathIdx=null;selectedPlayer=null;selectedCause=null;
   document.getElementById('analysis-files-list').innerHTML='';
   document.getElementById('boss-filter').innerHTML='<option value="">-- Alle Bosse --</option>';
   document.getElementById('an-pull-detail').style.display='none';
@@ -1080,7 +1169,11 @@ function filterBoss(){
   _currentFilteredPulls = pulls; // store for prev/next navigation
   renderAnalysis(pulls,limit);
 }
-function applyDeathLimit(deaths,limit){return(!limit||limit<=0)?deaths:deaths.slice(0,limit);}
+function applyDeathLimit(deaths,limit){
+  let d=deaths;
+  if(selectedCause) d=d.filter(x=>(x.cause||'Unbekannt')===selectedCause);
+  return(!limit||limit<=0)?d:d.slice(0,limit);
+}
 
 function renderRaidCDOverview(pulls) {
   const el = document.getElementById('an-raid-cd-chart');
@@ -1188,36 +1281,60 @@ function renderAnalysis(pulls,deathLimit=0){
   document.getElementById('an-deaths-per-pull').textContent=pulls.length?'&#216; '+(effectiveDeaths.length/pulls.length).toFixed(1)+' / Pull':'&#216; -- / Pull';
   document.getElementById('an-date-range').textContent=analysisFileMeta.length+' Datei(en)'+(deathLimit?', &#8804;'+deathLimit+' Tode':'');
 
+  // Calculate average time-to-rez
+  const rezzTimes = [];
+  for (const p of pulls) {
+    if (!p.rezzEvents || !p.deaths) continue;
+    for (const rezz of p.rezzEvents) {
+      // Find matching death for this target in this pull (last death before rezz)
+      const matchingDeath = [...p.deaths]
+        .filter(d => {
+          const dn = (d.name||'').split('-')[0].toLowerCase();
+          const rn = (rezz.targetName||'').split('-')[0].toLowerCase();
+          return dn === rn && d.offsetMs < rezz.offsetMs;
+        })
+        .sort((a,b) => b.offsetMs - a.offsetMs)[0];
+      if (matchingDeath) {
+        rezzTimes.push(rezz.offsetMs);
+      }
+    }
+  }
+  const avgRezz = rezzTimes.length
+    ? rezzTimes.reduce((a,b)=>a+b,0) / rezzTimes.length
+    : null;
+  const rezzEl = document.getElementById('an-avg-rezz');
+  const rezzSubEl = document.getElementById('an-avg-rezz-sub');
+  if (rezzEl) rezzEl.textContent = avgRezz !== null ? formatDuration(Math.round(avgRezz)) : '--';
+  if (rezzSubEl) rezzSubEl.textContent = avgRezz !== null ? rezzTimes.length + ' Rezz(s) erfasst' : 'Keine Rezz-Daten';
+
   // Deaths by player — store name as data attribute, no inline JS with name
   const byPlayer={};
   for(const d of effectiveDeaths) byPlayer[d.name]=(byPlayer[d.name]||0)+1;
-  const pSorted=Object.entries(byPlayer).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const pSorted=Object.entries(byPlayer).sort((a,b)=>b[1]-a[1]);
   const maxP=pSorted[0]?.[1]||1;
   const playerEl=document.getElementById('an-deaths-by-player');
+  const _rp=analysisPulls.find(p=>p.playerCasts&&p.playerCasts.length>0)||null;
   playerEl.innerHTML=pSorted.length
-    ?pSorted.map(([n,c],i)=>'<div class="bar-row player-bar'+(selectedPlayer===n?' active':'')+'" data-player-idx="'+i+'" title="Klick: Todesursachen filtern"><div class="bar-label">'+escHtml(n)+'</div><div class="bar-track"><div class="bar-fill red" style="width:'+Math.max(8,c/maxP*100)+'%">'+c+'</div></div></div>').join('')
+    ?pSorted.map(([n,c],i)=>{const col=getPlayerClassColor(_rp,n);const nH=col?'<span style="color:'+col+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(n)+'</span>':escHtml(n);const fs=col?'background:linear-gradient(90deg,'+col+'22,'+col+'99);color:'+col+';':'';return '<div class="bar-row player-bar'+(selectedPlayer===n?' active':'')+'" data-player-idx="'+i+'" title="Klick: Todesursachen filtern"><div class="bar-label">'+nH+'</div><div class="bar-track"><div class="bar-fill red" style="width:'+Math.max(8,c/maxP*100)+'%;'+fs+'">'+c+'</div></div></div>';}).join('')
     :'<div class="empty"><div class="empty-icon">&#128737;</div><p>Keine Tode</p></div>';
-  // Store player names in array for click handler
   window._playerNames = pSorted.map(([n])=>n);
   playerEl.querySelectorAll('.player-bar').forEach(el=>{
     el.onclick=()=>{ filterByPlayer(window._playerNames[+el.dataset.playerIdx]); };
   });
 
   // Death causes — filter by selected player
-  const causesSource=selectedPlayer?effectiveDeaths.filter(d=>d.name===selectedPlayer):effectiveDeaths;
+  const causesSource=effectiveDeaths
+    .filter(d=>!selectedPlayer||d.name===selectedPlayer)
+    .filter(d=>!selectedCause||(d.cause||'Unbekannt')===selectedCause);
   const causeTitle=document.getElementById('an-death-causes-title');
   if(causeTitle){
-    if(selectedPlayer){
-      causeTitle.textContent='';
-      causeTitle.innerHTML='&#9888; Todesursachen &#8212; '+escHtml(selectedPlayer)+' ';
-      const x=document.createElement('span');
-      x.textContent='&#10005; Filter aufheben';
-      x.style.cssText='font-weight:400;cursor:pointer;color:var(--text-dim);font-size:10px;text-transform:none;letter-spacing:0';
-      x.onclick=clearPlayerFilter;
-      causeTitle.appendChild(x);
-    } else {
-      causeTitle.textContent='&#9888; Häufigste Todesursachen';
+    let titleHtml='&#9888; Todesursachen';
+    if(selectedPlayer) titleHtml+=' &#8212; '+escHtml(selectedPlayer);
+    if(selectedCause) titleHtml+=(selectedPlayer?' &amp; ':' &#8212; ')+escHtml(selectedCause);
+    if(selectedPlayer||selectedCause){
+      titleHtml+=' <span style="font-weight:400;cursor:pointer;color:var(--text-dim);font-size:10px;text-transform:none;letter-spacing:0" onclick="clearCauseFilter()">&#10005; Filter aufheben</span>';
     }
+    causeTitle.innerHTML=titleHtml;
   }
   // Aggregate: cause name → {count, causeId (first seen)}
   const byCause={};
@@ -1229,9 +1346,25 @@ function renderAnalysis(pulls,deathLimit=0){
   }
   const cSorted=Object.entries(byCause).sort((a,b)=>b[1].count-a[1].count).slice(0,12);
   const maxC=cSorted[0]?.[1].count||1;
-  document.getElementById('an-death-causes').innerHTML=cSorted.length
-    ?cSorted.map(([c,{count:n,causeId:cid}])=>'<div class="bar-row"><div class="bar-label">'+spellLink(c,'cause-link',cid)+'</div><div class="bar-track"><div class="bar-fill gold" style="width:'+Math.max(8,n/maxC*100)+'%">'+n+'</div></div></div>').join('')
+  const causeEl=document.getElementById('an-death-causes');
+  causeEl.innerHTML=cSorted.length
+    ?cSorted.map(([c,{count:n,causeId:cid}])=>{
+        const isActiveCause=selectedCause===c;
+        return '<div class="bar-row player-bar'+(isActiveCause?' active':'')+'" data-cause="'+escHtml(c)+'" style="cursor:pointer;border-radius:4px;padding:1px 3px" title="Klick: nach dieser Todesursache filtern">'
+          +'<div class="bar-label"'+(isActiveCause?' style="color:var(--gold)"':'')+'>'+spellLink(c,'cause-link',cid)+'</div>'
+          +'<div class="bar-track"><div class="bar-fill gold" style="width:'+Math.max(8,n/maxC*100)+'%">'+n+'</div></div>'
+          +'</div>';
+      }).join('')
     :'<div class="empty"><div class="empty-icon">&#9888;</div><p>Keine Todesursachen</p></div>';
+  // Wire click handlers (after innerHTML)
+  window._causeNames = cSorted.map(([c])=>c);
+  causeEl.querySelectorAll('.player-bar[data-cause]').forEach(el=>{
+    el.onclick=(e)=>{
+      // Don't trigger if clicking the wowhead link itself
+      if(e.target.closest('a')) return;
+      filterByCause(el.dataset.cause);
+    };
+  });
   setTimeout(() => enrichSpellLinks(document.getElementById('an-death-causes')), 100);
 
   // Duration chart — clickable bars, skull marker if selectedPlayer died
@@ -1309,8 +1442,6 @@ function showPullDetail(num) {
   detailEl.innerHTML=buildPullDetailHTML(pull,visDeaths,'showDeathContext');
   
   setTimeout(() => enrichSpellLinks(detailEl), 100);
-  detailEl.scrollIntoView({behavior:'smooth',block:'nearest'});
-
   // Standalone Raid CD panel
   const raidSet=getRaidCDSet();
   const hasCDs=pull.raidCDs&&pull.raidCDs.some(cd=>raidSet.has(cd.spell));
@@ -1333,10 +1464,12 @@ function showPullDetail(num) {
       if(nextBtn){ nextBtn.style.display = nextP ? '' : 'none'; nextBtn.title = nextP ? '→ Pull #'+nextP.num : ''; }
       contentEl.innerHTML=buildRaidCDHTML(pull)||'<div class="empty"><p>Keine Raid-CDs</p></div>';
       setTimeout(()=>enrichSpellLinks(contentEl),100);
+      overviewEl.scrollIntoView({behavior:'smooth',block:'nearest'});
     } else {
       overviewEl.style.display='none';
       const pb=document.getElementById('an-nav-prev'); if(pb) pb.style.display='none';
       const nb=document.getElementById('an-nav-next'); if(nb) nb.style.display='none';
+      detailEl.scrollIntoView({behavior:'smooth',block:'nearest'});
     }
   }
   filterBoss();
@@ -1362,7 +1495,11 @@ function buildPullDetailHTML(pull,visDeaths,ctxFn){
     +'<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">Tode ('+visDeaths.length+(pull.deaths.length>visDeaths.length?' von '+pull.deaths.length:'')+') <span style="font-size:10px;color:var(--text-dim)">&#183; Klick f&#252;r 5s Kontext</span></div>'
     +'<div id="'+((ctxFn==='showDeathContext')?'detail-deaths-list':'live-detail-deaths')+'">'
     +(visDeaths.length
-      ?visDeaths.map((d,i)=>'<div class="death-entry clickable" onclick="'+ctxFn+'('+pull.num+','+i+')"><span>&#128128;</span><div class="death-name">'+escHtml(d.name)+'</div><div class="death-time">'+formatOffset(d.offsetMs)+'</div><div class="death-cause">'+spellLink(d.cause,null,d.causeId)+(d.causeBy?' <span style="color:var(--text-dim);font-size:11px">('+escHtml(d.causeBy)+')</span>':'')+'</div></div>').join('')
+      ?visDeaths.map((d,i)=>{
+        const dc=getPlayerClassColor(pull,d.name);
+        const nHtml=dc?'<span style="color:'+dc+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(d.name)+'</span>':escHtml(d.name);
+        return '<div class="death-entry clickable" onclick="'+ctxFn+'('+pull.num+','+i+')"><span>&#128128;</span><div class="death-name">'+nHtml+'</div><div class="death-time">'+formatOffset(d.offsetMs)+'</div><div class="death-cause">'+spellLink(d.cause,null,d.causeId)+(d.causeBy?' <span style="color:var(--text-dim);font-size:11px">('+escHtml(d.causeBy)+')</span>':'')+'</div></div>';
+      }).join('')
       :'<div style="color:var(--text-dim);font-size:13px;padding:8px">Keine Tode &#128737;</div>')
     +'</div></div>'
     +'<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">Pull-Timeline</div>'
@@ -1606,7 +1743,7 @@ function renderDeathContext(death,pull,containerEl){
     const datattrs = 'data-ts="'+ev.ts+'" data-idx="'+ev._idx+'"';
     if (ev._collapsed) {
       const pct = ev.maxHP>0?Math.round(ev.currentHP/ev.maxHP*100):0;
-      const fightTimeC = formatDuration(ev.ts - pullStartTime);
+      const fightTimeC = formatFightTime(ev.ts - pullStartTime);
       return '<div class="ctx-row ctx-hoverable" '+datattrs+' style="opacity:0.6">'
         +'<span class="ctx-time">'+fightTimeC+'</span>'
         +'<span class="ctx-type-heal">HEAL</span>'
@@ -1616,7 +1753,7 @@ function renderDeathContext(death,pull,containerEl){
     }
     const isDmg = ev.type==='dmg';
     const pct = ev.maxHP>0?Math.round(ev.currentHP/ev.maxHP*100):0;
-    const fightTime = formatDuration(ev.ts - pullStartTime);
+    const fightTime = formatFightTime(ev.ts - pullStartTime);
     return '<div class="ctx-row ctx-hoverable" '+datattrs+'>'
       +'<span class="ctx-time">'+fightTime+'</span>'
       +'<span class="'+(isDmg?'ctx-type-dmg':'ctx-type-heal')+'">'+(isDmg?'DMG':'HEAL')+'</span>'
@@ -1626,12 +1763,12 @@ function renderDeathContext(death,pull,containerEl){
   });
 
   containerEl.innerHTML='<div style="margin-top:14px">'
-    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">&#128128; '+escHtml(death.name)+' &#8212; letzte 5s vor Tod <span style="font-weight:400;color:var(--text-dim)">('+sortedCtx.length+' Events)</span></div>'
+    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">&#128128; '+coloredPlayerName(death.name,pull)+' &#8212; letzte 5s vor Tod <span style="font-weight:400;color:var(--text-dim)">('+sortedCtx.length+' Events)</span></div>'
     +svgGraph
     +'<div class="ctx-log" id="ctx-log-'+uid+'">'
     +'<div class="ctx-row" style="color:var(--text-dim);font-size:10px;border-bottom:1px solid var(--border);margin-bottom:3px;padding-bottom:3px"><span>Kampfzeit</span><span>Typ</span><span>Spell / Quelle</span><span style="text-align:right">Betrag</span></div>'
     +rows.join('')
-    +'<div class="ctx-row is-death" data-ts="'+deathTs+'" data-idx="'+sortedCtx.length+'"><span class="ctx-time">'+formatDuration(death.offsetMs)+'</span><span class="ctx-type-death">TOD</span><span class="ctx-spell">'+spellLink(death.cause,'ctx-spell-link',death.causeId)+' <span style="color:var(--text-dim)">&#183; '+escHtml(death.causeBy)+'</span></span><span></span></div>'
+    +'<div class="ctx-row is-death" data-ts="'+deathTs+'" data-idx="'+sortedCtx.length+'"><span class="ctx-time">'+formatFightTime(death.offsetMs)+'</span><span class="ctx-type-death">TOD</span><span class="ctx-spell">'+spellLink(death.cause,'ctx-spell-link',death.causeId)+' <span style="color:var(--text-dim)">&#183; '+escHtml(death.causeBy)+'</span></span><span></span></div>'
     +'</div></div>';
 
   setTimeout(() => enrichSpellLinks(containerEl), 100);
@@ -1676,22 +1813,33 @@ function filterByPlayer(name){
   filterBoss();
 }
 function clearPlayerFilter(){selectedPlayer=null;filterBoss();}
+function filterByCause(cause){
+  selectedCause=(cause&&cause!==selectedCause)?cause:null;
+  filterBoss();
+}
+function clearCauseFilter(){selectedCause=null;filterBoss();}
 
 // ── SETTINGS ────────────────────────────────────────────────────
 function renderSettings(){
   ['major','minor','consumable'].forEach(cat=>{
     const el=document.getElementById('cd-items-'+cat);
-    const items=userCooldowns.filter(([,c])=>c===cat);
+    const items=userCooldowns.map((item,i)=>({item,i})).filter(({item:[,c]})=>c===cat);
     el.innerHTML=items.length
-      ?items.map(([name,cat])=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat '+cat+'">'+cat+'</span><span class="cd-item-remove" onclick="removeCooldown('+JSON.stringify(name)+')">&#215;</span></div>').join('')
+      ?items.map(({item:[name,cat],i})=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat '+cat+'">'+cat+'</span><span class="cd-item-remove" data-cd-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
       :'<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+    el.querySelectorAll('.cd-item-remove[data-cd-idx]').forEach(btn=>{
+      btn.onclick=()=>{ removeCooldownByIdx(+btn.dataset.cdIdx); };
+    });
   });
   // Raid CDs
   const raidEl = document.getElementById('raid-cd-items');
   if (raidEl) {
     raidEl.innerHTML = userRaidCDs.length
-      ? userRaidCDs.map(name=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat major">Raid CD</span><span class="cd-item-remove" onclick="removeRaidCD('+JSON.stringify(name)+')">&#215;</span></div>').join('')
+      ? userRaidCDs.map((name,i)=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat major">Raid CD</span><span class="cd-item-remove" data-raid-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
       : '<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+    raidEl.querySelectorAll('.cd-item-remove[data-raid-idx]').forEach(btn=>{
+      btn.onclick=()=>{ removeRaidCDByIdx(+btn.dataset.raidIdx); };
+    });
   }
 }
 function addRaidCD() {
@@ -1703,6 +1851,10 @@ function addRaidCD() {
 }
 function removeRaidCD(name) {
   userRaidCDs = userRaidCDs.filter(n => n !== name);
+  saveRaidCDs(); renderSettings();
+}
+function removeRaidCDByIdx(idx) {
+  userRaidCDs.splice(idx, 1);
   saveRaidCDs(); renderSettings();
 }
 function resetRaidCDs() {
@@ -1722,6 +1874,10 @@ function addCooldown(){
 }
 function removeCooldown(name){
   userCooldowns=userCooldowns.filter(([n])=>n!==name);
+  saveCooldowns(); renderSettings();
+}
+function removeCooldownByIdx(idx){
+  userCooldowns.splice(idx,1);
   saveCooldowns(); renderSettings();
 }
 function resetCooldowns(){
@@ -1765,6 +1921,79 @@ function normalizeForMatch(s) {
 }
 
 // ── APL Spec list ─────────────────────────────────────────────────
+// WoW Class Colors
+const WOW_CLASS_COLORS={'deathknight':'#C41E3A','demonhunter':'#A330C9','druid':'#FF7C0A','evoker':'#33937F','hunter':'#AAD372','mage':'#3FC7EB','monk':'#00FF98','paladin':'#F48CBA','priest':'#FFFFFF','rogue':'#FFF468','shaman':'#0070DD','warlock':'#8788EE','warrior':'#C69B3A'};
+function specToClass(k){return k?k.split('_')[0]:null;}
+function getPlayerClassColor(pull,name){if(!pull||!name)return null;const spec=detectPlayerSpec(pull,name);return spec?WOW_CLASS_COLORS[specToClass(spec)]||null:null;}
+function coloredPlayerName(name,pull){const c=pull?getPlayerClassColor(pull,name):null;if(!c)return escHtml(name);return '<span style="color:'+c+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(name)+'</span>';}
+
+const SPEC_SIGNATURES = {
+  'deathknight_blood':     ['Death Strike','Marrowrend','Blood Boil','Heart Strike','Vampiric Blood','Icebound Fortitude','Anti-Magic Zone'],
+  'deathknight_frost':     ['Frost Strike','Obliterate','Pillar of Frost','Empower Rune Weapon','Remorseless Winter'],
+  'deathknight_unholy':    ['Scourge Strike','Dark Transformation','Apocalypse','Army of the Dead','Festering Strike'],
+  'warrior_protection':    ['Shield Wall','Ignore Pain','Last Stand','Shield Block','Avatar'],
+  'warrior_arms':          ['Mortal Strike','Slam','Colossus Smash','Overpower','Sweeping Strikes'],
+  'warrior_fury':          ['Recklessness','Rampage','Bloodthirst','Enrage','Execute'],
+  'paladin_protection':    ["Avenger's Shield",'Shield of the Righteous','Guardian of Ancient Kings','Consecration'],
+  'paladin_holy':          ['Holy Shock','Aura Mastery','Lay on Hands','Holy Light','Beacon of Light'],
+  'paladin_retribution':   ['Judgment','Hammer of Wrath','Wake of Ashes','Avenging Wrath','Final Verdict'],
+  'druid_guardian':        ['Mangle','Thrash','Frenzied Regeneration','Survival Instincts','Ironfur'],
+  'druid_balance':         ['Starsurge','Starfall','Sunfire','Moonfire','Fury of Elune'],
+  'druid_feral':           ['Ferocious Bite','Tiger\'s Fury','Rake','Rip','Berserk'],
+  'druid_restoration':     ['Tranquility','Wild Growth','Regrowth','Rejuvenation','Swiftmend'],
+  'priest_shadow':         ['Void Eruption','Mind Blast','Vampiric Touch','Devouring Plague'],
+  'priest_holy':           ['Guardian Spirit','Holy Nova','Circle of Healing','Prayer of Mending'],
+  'priest_discipline':     ['Pain Suppression','Penance','Power Word: Radiance','Rapture'],
+  'demonhunter_havoc':     ['Blur','Eye Beam','Blade Dance','Chaos Strike','The Hunt'],
+  'demonhunter_vengeance': ['Fiery Brand','Sigil of Flame','Soul Cleave','Metamorphosis'],
+  'monk_brewmaster':       ['Purifying Brew','Celestial Brew','Keg Smash','Breath of Fire'],
+  'monk_windwalker':       ['Rising Sun Kick','Fists of Fury','Strike of the Windlord','Blackout Kick'],
+  'monk_mistweaver':       ['Revival','Renewing Mist','Vivify','Soothing Mist','Thunder Focus Tea'],
+  'shaman_restoration':    ['Spirit Link Totem','Healing Wave','Chain Heal','Riptide','Ascendance'],
+  'shaman_elemental':      ['Lava Burst','Lightning Bolt','Earthquake','Storm Elemental','Stormkeeper'],
+  'shaman_enhancement':    ['Windfury','Stormstrike','Crash Lightning','Sundering','Feral Spirits'],
+  'mage_frost':            ['Ice Block','Frozen Orb','Ice Lance','Blizzard','Glacial Spike','Flurry'],
+  'mage_fire':             ['Combustion','Pyroblast','Fireball','Phoenix Flames','Living Bomb'],
+  'mage_arcane':           ['Arcane Blast','Arcane Power','Arcane Barrage','Arcane Missiles','Evocation'],
+  'hunter_beastmastery':   ['Kill Command','Bestial Wrath','Barbed Shot','Multi-Shot','Cobra Shot'],
+  'hunter_marksmanship':   ['Aimed Shot','Rapid Fire','Trick Shots','Windrunner','Steady Shot'],
+  'hunter_survival':       ['Wildfire Bomb','Mongoose Bite','Coordinated Assault','Raptor Strike'],
+  'rogue_assassination':   ['Envenom','Mutilate','Garrote','Rupture','Exsanguinate'],
+  'rogue_outlaw':          ['Dispatch','Blade Flurry','Roll the Bones','Pistol Shot','Between the Eyes'],
+  'rogue_subtlety':        ['Eviscerate','Shadow Dance','Shadowstrike','Secret Technique','Shadow Blades'],
+  'warlock_affliction':    ['Unstable Affliction','Corruption','Haunt','Soul Rot','Malefic Rapture'],
+  'warlock_destruction':   ['Chaos Bolt','Conflagrate','Rain of Fire','Havoc','Immolate'],
+  'evoker_devastation':    ['Dragonrage','Eternity Surge','Deep Breath','Disintegrate','Fire Breath'],
+  'evoker_preservation':   ['Reversion','Dream Breath','Spiritbloom','Echo','Emerald Communion'],
+  'evoker_augmentation':   ['Ebon Might','Prescience','Breath of Eons','Upheaval','Fate Mirror'],
+};
+
+function detectPlayerSpec(pull, playerName) {
+  if (!pull || !pull.playerCasts) return null;
+  const pnorm = normalizeForMatch(playerName.split('-')[0]);
+  const playerSpells = new Set(
+    pull.playerCasts
+      .filter(c => normalizeForMatch((c.playerName||'').split('-')[0]) === pnorm)
+      .map(c => c.spell)
+  );
+  if (!playerSpells.size) return null;
+
+  let bestSpec = null, bestScore = 0;
+  for (const [spec, sigs] of Object.entries(SPEC_SIGNATURES)) {
+    const score = sigs.filter(s => playerSpells.has(s)).length;
+    if (score > bestScore) { bestScore = score; bestSpec = spec; }
+  }
+  return bestScore >= 1 ? bestSpec : null;
+}
+
+function autoSelectAPL(pull, playerName) {
+  const spec = detectPlayerSpec(pull, playerName);
+  if (!spec) return null;
+  // Find matching display name in APL_SPECS
+  const entry = Object.entries(APL_SPECS).find(([,v]) => v === spec);
+  return entry ? entry[0] : null;
+}
+
 const APL_SPECS = {
   'Death Knight · Blood':     'deathknight_blood',
   'Death Knight · Frost':     'deathknight_frost',
@@ -1919,12 +2148,63 @@ function evaluateAPLAtCast(cast, buffs, runicPower, apl, pullDurMs) {
 
     const condResult = tryEvalCondition(action.ifCond, buffs, runicPower, offsetSec, fightRemains);
     if (condResult === true) {
+      // Build human-readable reason with resolved values
+      let why = '';
+      if (!action.ifCond) {
+        why = 'Kein Cooldown/Bedingung — immer castbar';
+      } else {
+        // Resolve actual values from state for key resources
+        const rpVal = runicPower !== null ? runicPower : '?';
+        const rpDef = runicPower !== null ? (120 - runicPower) : '?';
+        const resolvedParts = [];
+
+        // Parse AND conditions and resolve each
+        const atoms = action.ifCond.split(/&(?!&)/);
+        for (const atom of atoms) {
+          const a = atom.trim();
+          let resolved = a;
+          // runic_power.deficit comparisons
+          let m;
+          if ((m = a.match(/runic_power\.deficit([<>]=?)(\d+)/))) {
+            resolved = 'RP-Deficit ' + m[1] + m[2] + ' (aktuell: ' + rpDef + ')';
+          } else if ((m = a.match(/runic_power([<>]=?)(\d+)/))) {
+            resolved = 'Runic Power ' + m[1] + m[2] + ' (aktuell: ' + rpVal + ')';
+          } else if ((m = a.match(/^!?buff\.(\w+)\.up$/))) {
+            const neg = a.startsWith('!');
+            const bname = m[1].replace(/_/g,' ');
+            const bkey = m[1].toLowerCase().replace(/_/g,'');
+            const active = !!buffs[bkey];
+            resolved = (neg?'KEIN ':'') + bname + (active?' [✓ aktiv]':' [✗ inaktiv]');
+          } else if ((m = a.match(/buff\.(\w+)\.stack([<>]=?)(\d+)/))) {
+            const bname = m[1].replace(/_/g,' ');
+            const bkey = m[1].toLowerCase().replace(/_/g,'');
+            const stacks = buffs[bkey]?.stack ?? 0;
+            resolved = bname + ' Stacks ' + m[2] + m[3] + ' (aktuell: ' + stacks + ')';
+          } else if ((m = a.match(/buff\.(\w+)\.remains([<>]=?)(\d+)/))) {
+            const bname = m[1].replace(/_/g,' ');
+            resolved = bname + ' läuft ab ' + m[2] + m[3] + 's';
+          } else if ((m = a.match(/!buff\.(\w+)\.up/))) {
+            const bname = m[1].replace(/_/g,' ');
+            const bkey = m[1].toLowerCase().replace(/_/g,'');
+            const active = !!buffs[bkey];
+            resolved = bname + ' nicht aktiv' + (active?' [✗ war aber aktiv]':' [✓]');
+          } else if (a.includes('fight_remains')) {
+            resolved = 'Fight-Rest > ' + a.match(/\d+/)?.[0] + 's';
+          } else if (a.includes('time')) {
+            resolved = 'Zeit > ' + a.match(/\d+/)?.[0] + 's';
+          } else {
+            resolved = a.replace(/_/g,' ').replace(/\./g,' ').replace(/&/g,' UND ');
+          }
+          resolvedParts.push(resolved);
+        }
+        why = resolvedParts.join(' UND ');
+      }
       suggestions.push({
         spell: action.displayName,
         simcSpell: action.spell,
         priority: i,
         condition: action.ifCond,
-        reason: `APL Priorität ${i+1} hätte '${action.displayName}' bevorzugt`,
+        reason: why,
       });
     }
   }
@@ -2002,6 +2282,7 @@ function renderAPLTab() {
   if (specSel && specSel.options.length <= 1) {
     specSel.innerHTML = '<option value="">— Spec wählen —</option>'
       + Object.keys(APL_SPECS).map(s=>`<option value="${s}">${s}</option>`).join('');
+    specSel.onchange = () => { if(specSel.value) aplLoadFromGitHub(); };
   }
 
   renderAPLResult();
@@ -2087,9 +2368,9 @@ function renderAPLResult() {
         <div style="flex-shrink:0;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding-top:2px">${formatDuration(cast.offsetMs)}</div>
         <div>
           <div style="font-size:13px;margin-bottom:4px">Gecastet: ${spellLink(cast.spell,'',cast.spellId)}</div>
-          ${suggestions.map(s=>`<div style="font-size:11px;color:var(--red);margin-top:2px">
-            ↑ Prio ${s.priority+1}: ${spellLink(s.spell,'')}
-            ${s.condition?`<span style="color:var(--text-dim);font-size:10px"> (${escHtml(s.condition.substring(0,60)+(s.condition.length>60?'…':''))})</span>`:''}
+          ${suggestions.map(s=>`<div style="font-size:11px;color:rgba(192,57,43,0.8);margin-top:4px;padding:4px 6px;background:rgba(192,57,43,0.06);border-radius:4px;border-left:2px solid var(--red)">
+            <span style="opacity:0.6">Prio ${s.priority+1}:</span> ${spellLink(s.spell,'')}
+            <div style="color:var(--text-sec);font-size:10px;margin-top:2px">${escHtml(s.reason)}</div>
           </div>`).join('')}
         </div>
       </div>`;
@@ -2153,30 +2434,30 @@ function renderAPLResult() {
   setTimeout(() => enrichSpellLinks(el), 100);
 }
 
-async function aplLoadFromGitHub() {
-  const spec = document.getElementById('apl-spec-select').value;
+async function aplLoadFromGitHub(specOverride) {
+  const spec = specOverride || document.getElementById('apl-spec-select').value;
   if (!spec) return;
   const filename = APL_SPECS[spec];
   if (!filename) return;
   const statusEl = document.getElementById('apl-load-status');
   const previewEl = document.getElementById('apl-raw-preview');
-  statusEl.textContent = 'Lade von GitHub…';
+  const url = APL_GITHUB_BASE + filename + '.simc';
+  statusEl.innerHTML = 'Lade… <a href="' + url + '" target="_blank" style="color:var(--text-dim);font-size:10px">' + url + '</a>';
   statusEl.style.color = 'var(--text-sec)';
   try {
-    const url = APL_GITHUB_BASE + filename + '.simc';
     const r = await fetch(url);
-    if (!r.ok) throw new Error(`HTTP ${r.status} — Datei nicht gefunden für: ${filename}`);
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' — ' + url);
     aplRawText = await r.text();
     aplParsed = parseAPL(aplRawText);
     aplParsed.specName = spec;
     const lineCount = Object.values(aplParsed.lists).flat().length;
-    statusEl.textContent = `✓ ${spec} — ${lineCount} APL-Aktionen geladen`;
+    statusEl.innerHTML = '✓ ' + escHtml(spec) + ' — ' + lineCount + ' Aktionen &nbsp;<a href="' + url + '" target="_blank" style="color:var(--text-dim);font-size:10px" title="APL auf GitHub">[GitHub]</a>';
     statusEl.style.color = 'var(--green)';
     previewEl.style.display = 'block';
     previewEl.textContent = aplRawText.split('\n').filter(l=>!l.startsWith('#')).slice(0,20).join('\n')+'…';
     renderAPLResult();
   } catch(e) {
-    statusEl.textContent = '✗ ' + e.message;
+    statusEl.innerHTML = '✗ ' + escHtml(e.message) + ' &nbsp;<a href="' + url + '" target="_blank" style="color:var(--red);font-size:10px">[Link prüfen]</a>';
     statusEl.style.color = 'var(--red)';
   }
 }
@@ -2202,13 +2483,46 @@ function aplLoadFromFile(evt) {
 
 function aplPlayerChanged() {
   aplSelectedPlayer = document.getElementById('apl-player-select').value || null;
+  tryAutoLoadAPL();
 }
 function aplPullChanged() {
   const v = document.getElementById('apl-pull-select').value;
   aplSelectedPull = v ? parseInt(v) : null;
+  tryAutoLoadAPL();
 }
 
-function runAndRenderAPL() { renderAPLResult(); }
+async function tryAutoLoadAPL() {
+  if (!aplSelectedPlayer) return;
+  // Use first available pull with casts for this player
+  const pull = aplSelectedPull
+    ? analysisPulls.find(p=>p.num===aplSelectedPull)
+    : analysisPulls.find(p=>p.playerCasts&&p.playerCasts.some(c=>(c.playerName||'').split('-')[0]===aplSelectedPlayer.split('-')[0]));
+  if (!pull) return;
+  const specDisplay = autoSelectAPL(pull, aplSelectedPlayer);
+  if (!specDisplay) return;
+  // Update spec select UI
+  const specSel = document.getElementById('apl-spec-select');
+  if (specSel) specSel.value = specDisplay;
+  // If no APL loaded yet, auto-load it
+  if (!aplRawText) {
+    await aplLoadFromGitHub(specDisplay);
+  }
+}
+
+async function runAndRenderAPL(){
+  if(!aplSelectedPlayer){renderAPLResult();return;}
+  const pull=aplSelectedPull?analysisPulls.find(p=>p.num===aplSelectedPull):analysisPulls.find(p=>p.playerCasts&&p.playerCasts.some(c=>(c.playerName||'').split('-')[0]===aplSelectedPlayer.split('-')[0]));
+  if(pull){
+    const detectedSpec=autoSelectAPL(pull,aplSelectedPlayer);
+    const currentSpec=aplParsed?.specName;
+    if(detectedSpec&&detectedSpec!==currentSpec){
+      const s=document.getElementById('apl-load-status');if(s){s.textContent='Erkannte: '+detectedSpec+'…';s.style.color='var(--text-sec)';}
+      const ss=document.getElementById('apl-spec-select');if(ss)ss.value=detectedSpec;
+      await aplLoadFromGitHub(detectedSpec);return;
+    }else if(detectedSpec){const ss=document.getElementById('apl-spec-select');if(ss)ss.value=detectedSpec;}
+  }
+  renderAPLResult();
+}
 
 // ── KEYBOARD NAVIGATION ───────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
