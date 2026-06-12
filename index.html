@@ -1378,7 +1378,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   // Category cast lists (with full info for tooltip)
   const cats = [];
   if (showDef) {
-    const c = [...allCasts.filter(c=>defMap.has(c.spell)];
+    const c = allCasts.filter(c=>defMap.has(c.spell));
     if (c.length) cats.push({name:'Defensiv-CDs', casts:c, col:'#c8a84b'});
   }
   if (showOff) {
