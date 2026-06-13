@@ -1414,8 +1414,8 @@ function isBossAbilityEnabled(spell) {
   return _MIDNIGHT_ENABLED.has(spell);
 }
 function saveBossAbilities(){try{localStorage.setItem('wow_boss_abilities',JSON.stringify(_bossAbilityEnabled));}catch(e){}}
-const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Iris of Oblivion']);
-const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Termination Prism','Terminate','Dark Quasar']);
+const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Termination Prism','Iris of Oblivion']);
+const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Terminate','Dark Quasar']);
 function loadBossAbilities(){
   try{const s=localStorage.getItem('wow_boss_abilities');if(s){_bossAbilityEnabled=JSON.parse(s);return;}}catch(e){}
   // No saved prefs — apply Midnight Falls defaults
