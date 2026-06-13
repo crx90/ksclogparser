@@ -173,22 +173,25 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER V2.2</div>
+      <div class="logo-text">COMBATLOG PARSER V2.3</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
+  <div id="header-pull-info" style="position:absolute;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;display:none">
+    <div id="header-boss" style="font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.04em"></div>
+    <div id="header-meta" style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);margin-top:1px"></div>
+  </div>
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('live')">&#9889; Live</button>
-    <button class="tab-btn" onclick="switchTab('analysis')">&#128202; Analyse</button>
+    <button class="tab-btn" onclick="switchTab('live')">&#9889; Live</button>
+    <button class="tab-btn" onclick="switchTab('analysis')">&#128202; Performance</button>
     <button class="tab-btn" onclick="switchTab('perf')">&#128202; Performance</button>
-    <button class="tab-btn" onclick="switchTab('apl')">&#127919; APL Analyse</button>
-    <button class="tab-btn" onclick="switchTab('settings')">&#9881; Einstellungen</button>
+    <button class="tab-btn" onclick="switchTab('settings')">&#9881; Settings</button>
   </div>
 </header>
 <main>
 
 <!-- LIVE -->
-<div id="view-live" class="view active">
+<div id="view-live" class="view">
   <div class="section">
     <div class="flex-gap" style="margin-bottom:14px">
       <button class="btn btn-primary" id="live-open-btn" onclick="openLiveFile()">&#128194; Log-Datei &#246;ffnen (Live)</button>
@@ -207,19 +210,19 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
       </div>
     </div>
     <div class="grid-4 section">
-      <div class="stat-box"><div class="stat-label">Letzter Pull</div><div class="stat-value gold" id="stat-pull-num">&#8212;</div><div class="stat-sub" id="stat-boss-name">Kein Pull</div></div>
-      <div class="stat-box"><div class="stat-label">Pull-Dauer</div><div class="stat-value" id="stat-duration">&#8212;</div><div class="stat-sub" id="stat-status-badge"></div></div>
-      <div class="stat-box"><div class="stat-label">Tode (akt. Pull)</div><div class="stat-value red" id="stat-deaths-current">0</div><div class="stat-sub">Spieler gestorben</div></div>
-      <div class="stat-box"><div class="stat-label">Pulls geladen</div><div class="stat-value" id="stat-pulls-total">0</div><div class="stat-sub" id="stat-deaths-total">0 Tode gesamt</div></div>
+      <div class="stat-box"><div class="stat-label">Letzter Pull</div><div class="stat-value gold" id="stat-pull-num">&#8212;</div><div class="stat-sub" id="stat-boss-name">No Pull</div></div>
+      <div class="stat-box"><div class="stat-label">Pull-Duration</div><div class="stat-value" id="stat-duration">&#8212;</div><div class="stat-sub" id="stat-status-badge"></div></div>
+      <div class="stat-box"><div class="stat-label">Deaths (cur. pull)</div><div class="stat-value red" id="stat-deaths-current">0</div><div class="stat-sub">Spieler gestorben</div></div>
+      <div class="stat-box"><div class="stat-label">Pulls loaded</div><div class="stat-value" id="stat-pulls-total">0</div><div class="stat-sub" id="stat-deaths-total">0 Total Deaths</div></div>
     </div>
     <div class="grid-2">
       <div class="card">
         <div class="card-title">&#128128; Tode &#8212; Letzter Pull</div>
-        <div class="scroll-area" id="live-deaths-list"><div class="empty"><div class="empty-icon">&#128737;</div><p>Noch keine Tode</p></div></div>
+        <div class="scroll-area" id="live-deaths-list" style="max-height:90px"><div class="empty"><div class="empty-icon">&#128737;</div><p>No Deaths Yet</p></div></div>
       </div>
       <div class="card">
         <div class="card-title">&#128203; Pull-Timeline</div>
-        <div class="scroll-area" id="live-timeline"><div class="empty"><div class="empty-icon">&#9201;</div><p>Warte auf Pull...</p></div></div>
+        <div class="scroll-area" id="live-timeline" style="max-height:90px"><div class="empty"><div class="empty-icon">&#9201;</div><p>Waiting for pull...</p></div></div>
       </div>
     </div>
   </div>
@@ -227,41 +230,43 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="section">
     <div class="flex-gap" style="margin-bottom:10px">
       <div class="card-title" style="margin-bottom:0;flex:1">&#128220; Pull-History (Session)</div>
-      <label class="ctrl-label">Tode ignorieren ab:</label>
+      <label class="ctrl-label">Ignore deaths above:</label>
       <input type="number" class="num-input" id="live-death-limit" value="0" min="0" max="99" onchange="renderLiveHistory()">
-      <span class="ctrl-label">Tod(e)</span>
+      <span class="ctrl-label">death(s)</span>
     </div>
     <div id="live-cd-panel" style="display:none;margin-bottom:14px">
       <div class="card section" style="scroll-margin-top:64px">
-        <div class="card-title">&#9201; CD-Verlauf
+        <div class="card-title">&#9201; CD Timeline
           <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px">
-            <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-def" checked onchange="renderLiveCDChart()"> Defensiv-CDs</label>
+            <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-def" checked onchange="renderLiveCDChart()"> Defensive CDs</label>
             <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-off" checked onchange="renderLiveCDChart()"> Offensive CDs</label>
             <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-heal" checked onchange="renderLiveCDChart()"> Healpots</label>
             <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-dps" checked onchange="renderLiveCDChart()"> DPS-Pots</label>
+            <label style="cursor:pointer;margin-right:8px"><input type="checkbox" id="live-cd-show-boss" checked onchange="renderLiveCDChart()"> Boss Abilities</label>
             <span style="margin-left:8px;border-left:1px solid var(--border);padding-left:8px"><button id="live-cd-mode-btn" onclick="toggleLiveCDChartMode()" style="padding:2px 10px;font-size:10px;border-radius:4px;border:1px solid var(--border-lit);background:var(--bg-panel);color:var(--gold);cursor:pointer">&#128202; Density</button></span>
           </span>
         </div>
-        <div id="live-cd-chart"><div class="empty"><p>Pull ausw&#228;hlen</p></div></div>
+        <div id="live-cd-chart"><div class="empty"><p>Select Pull</p></div></div>
       </div>
       <div id="live-raid-cd-panel"></div>
     </div>
-    <div class="pull-row pull-row-header"><span>#</span><span>Boss</span><span>Dauer</span><span>Tode</span><span>Ergebnis</span></div>
-    <div class="scroll-area" id="live-pull-history" style="max-height:280px"><div class="empty"><p>Keine Pulls</p></div></div>
+    <div class="pull-row pull-row-header"><span>#</span><span>Boss</span><span>Duration</span><span>Tode</span><span>Result</span></div>
+    <div class="scroll-area" id="live-pull-history" style="max-height:280px"><div class="empty"><p>No Pulls</p></div></div>
     <div id="live-pull-detail" style="display:none" class="detail-panel"></div>
   </div>
 </div>
 
 <!-- ANALYSE -->
-<div id="view-analysis" class="view">
+<div id="view-analysis" class="view active">
   <div class="section">
     <div class="flex-gap" style="margin-bottom:12px">
       <button class="btn btn-primary" id="an-open-btn" onclick="openAnalysisFiles()">&#128194; Log-Dateien hinzuf&#252;gen</button>
+      <input type="file" id="analysis-file-input" accept=".txt,.log" multiple style="display:none" onchange="handleAnalysisFiles(event)">
       <button class="btn" onclick="clearAnalysis()">&#128465; Zur&#252;cksetzen</button>
-      <select class="boss-select" id="boss-filter" onchange="filterBoss()"><option value="">&#8212; Alle Bosse &#8212;</option></select>
-      <label class="ctrl-label" style="margin-left:6px">Tode ignorieren ab:</label>
+      <select class="boss-select" id="boss-filter" onchange="filterBoss()"><option value="">&#8212; All Bosses &#8212;</option></select>
+      <label class="ctrl-label" style="margin-left:6px">Ignore deaths above:</label>
       <input type="number" class="num-input" id="death-limit" value="0" min="0" max="99" onchange="filterBoss()">
-      <span class="ctrl-label">Tod(e)</span>
+      <span class="ctrl-label">death(s)</span>
     </div>
     <div id="an-progress" style="display:none">
       <div class="progress-wrap">
@@ -273,49 +278,50 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     <div class="file-chips" id="analysis-files-list"></div>
   </div>
   <div class="grid-4 section" style="grid-template-columns:repeat(5,1fr)">
-    <div class="stat-box"><div class="stat-label">Gesamt-Pulls</div><div class="stat-value gold" id="an-total-pulls">0</div><div class="stat-sub" id="an-date-range">&#8212;</div></div>
-    <div class="stat-box"><div class="stat-label">Kills</div><div class="stat-value green" id="an-kills">0</div><div class="stat-sub" id="an-kill-rate">Kill-Rate &#8212;</div></div>
-    <div class="stat-box"><div class="stat-label">&#216; Pull-Dauer</div><div class="stat-value" id="an-avg-duration">&#8212;</div><div class="stat-sub">Schnitt aller Pulls</div></div>
-    <div class="stat-box"><div class="stat-label">Gefilterte Tode</div><div class="stat-value red" id="an-total-deaths">0</div><div class="stat-sub" id="an-deaths-per-pull">&#216; &#8212; / Pull</div></div>
-    <div class="stat-box"><div class="stat-label">&#216; Rezz-Zeitpunkt</div><div class="stat-value" id="an-avg-rezz">&#8212;</div><div class="stat-sub" id="an-avg-rezz-sub">Keine Rezz-Daten</div></div>
+    <div class="stat-box"><div class="stat-label">Total Pulls</div><div class="stat-value gold" id="an-total-pulls">0</div><div class="stat-sub" id="an-date-range">&#8212;</div></div>
+    <div class="stat-box"><div class="stat-label">Kills</div><div class="stat-value green" id="an-kills">0</div><div class="stat-sub" id="an-kill-rate">Kill Rate &#8212;</div></div>
+    <div class="stat-box"><div class="stat-label">Avg Pull Duration</div><div class="stat-value" id="an-avg-duration">&#8212;</div><div class="stat-sub">Schnitt aller Pulls</div></div>
+    <div class="stat-box"><div class="stat-label">Filtered Deaths</div><div class="stat-value red" id="an-total-deaths">0</div><div class="stat-sub" id="an-deaths-per-pull">Avg &#8212; / Pull</div></div>
+    <div class="stat-box"><div class="stat-label">Avg Rez Timing</div><div class="stat-value" id="an-avg-rezz">&#8212;</div><div class="stat-sub" id="an-avg-rezz-sub">No Rez Data</div></div>
   </div>
   <div class="grid-2 section">
     <div class="card">
-      <div class="card-title" id="an-deaths-by-player-title">&#128128; Tode pro Spieler</div>
-      <div id="an-deaths-by-player"><div class="empty"><div class="empty-icon">&#128194;</div><p>Keine Logs geladen</p></div></div>
+      <div class="card-title" id="an-deaths-by-player-title">&#128128; Deaths per Player</div>
+      <div id="an-deaths-by-player"><div class="empty"><div class="empty-icon">&#128194;</div><p>No Logs Loaded</p></div></div>
     </div>
     <div class="card">
-      <div class="card-title" id="an-death-causes-title">&#9888; H&#228;ufigste Todesursachen</div>
-      <div id="an-death-causes"><div class="empty"><div class="empty-icon">&#128194;</div><p>Keine Logs geladen</p></div></div>
+      <div class="card-title" id="an-death-causes-title">&#9888; H&#228;ufigste Causes of Death</div>
+      <div id="an-death-causes"><div class="empty"><div class="empty-icon">&#128194;</div><p>No Logs Loaded</p></div></div>
     </div>
   </div>
   <div class="card section">
-    <div class="card-title">&#128200; Pull-Dauer Verlauf <span style="font-size:10px;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">&nbsp;&#183; Klick auf Balken = Pull-Detail</span></div>
-    <div id="an-duration-chart"><div class="empty"><div class="empty-icon">&#128194;</div><p>Keine Logs geladen</p></div></div>
+    <div class="card-title">&#128200; Pull Duration History <span style="font-size:10px;font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">&nbsp;&#183; Klick auf Balken = Pull-Detail</span></div>
+    <div id="an-duration-chart"><div class="empty"><div class="empty-icon">&#128194;</div><p>No Logs Loaded</p></div></div>
   </div>
   <div class="card section">
-    <div class="card-title">&#128203; Alle Pulls</div>
-    <div class="pull-row pull-row-header"><span>#</span><span>Boss</span><span>Dauer</span><span>Tode</span><span>Ergebnis</span></div>
-    <div class="scroll-area" id="an-pulls-table" style="max-height:260px"><div class="empty"><p>Keine Pulls</p></div></div>
+    <div class="card-title">&#128203; All Pulls</div>
+    <div class="pull-row pull-row-header"><span>#</span><span>Boss</span><span>Duration</span><span>Tode</span><span>Result</span></div>
+    <div class="scroll-area" id="an-pulls-table" style="max-height:90px"><div class="empty"><p>No Pulls</p></div></div>
   </div>
   <div class="card section" id="an-cd-timeline-card" style="display:none">
-    <div class="card-title">&#9201; CD-Verlauf &#252;ber alle Pulls
+    <div class="card-title">&#9201; CD Timeline — All Pulls
       <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px">
-        <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-def" checked onchange="renderCDTimeline()"> Defensiv-CDs</label>
+        <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-def" checked onchange="renderCDTimeline()"> Defensive CDs</label>
         <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-off" checked onchange="renderCDTimeline()"> Offensive CDs</label>
         <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-heal" checked onchange="renderCDTimeline()"> Healpots/Stones</label>
         <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-dps" checked onchange="renderCDTimeline()"> DPS-Pots</label>
+        <label style="cursor:pointer;margin-right:10px"><input type="checkbox" id="cd-show-boss" checked onchange="renderCDTimeline()"> Boss Abilities</label>
         <span style="margin-left:8px;border-left:1px solid var(--border);padding-left:10px">
           <button id="cd-chart-mode-btn" onclick="toggleCDChartMode()" style="padding:2px 10px;font-size:10px;border-radius:4px;border:1px solid var(--border-lit);background:var(--bg-panel);color:var(--gold);cursor:pointer" title="Zwischen Density-Graph (D) und Balken-Ansicht (B) wechseln">&#128202; Density</button>
         </span>
       </span>
     </div>
-    <div id="an-cd-timeline"><div class="empty"><p>Pull ausw&#228;hlen</p></div></div>
+    <div id="an-cd-timeline"><div class="empty"><p>Select Pull</p></div></div>
   </div>
   <div class="card section" id="an-raid-cd-overview" style="display:none;position:relative;overflow:visible;margin-left:20px;margin-right:20px">
     <button id="an-nav-prev" class="pull-nav-btn prev" onclick="navigatePull(-1)" style="display:none" title="Vorheriger Pull">&#8592;</button>
     <button id="an-nav-next" class="pull-nav-btn next" onclick="navigatePull(1)" style="display:none" title="N&#228;chster Pull">&#8594;</button>
-    <div class="card-title">&#128737; Raid Cooldowns &#8212; <span id="an-raid-cd-title" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">Pull ausw&#228;hlen</span></div>
+    <div class="card-title">&#128737; Raid Cooldowns — <span id="an-raid-cd-title" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">Select Pull</span></div>
     <div id="an-raid-cd-content"><div class="empty"><p>Klicke einen Pull an um den CD-Verlauf zu sehen</p></div></div>
   </div>
   <div id="an-pull-detail" style="display:none" class="detail-panel"></div>
@@ -329,60 +335,14 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
         <option value="">&#8212; Pull w&#228;hlen &#8212;</option>
       </select>
       <select class="boss-select" id="perf-player-select" onchange="perfPlayerChanged()" style="min-width:160px">
-        <option value="">&#8212; Spieler w&#228;hlen &#8212;</option>
+        <option value="">&#8212; Select Player &#8212;</option>
       </select>
     </div>
     <div id="perf-result">
-      <div class="empty"><div class="empty-icon">&#128202;</div><p>Lade Logs im Analyse-Tab, dann hier Pull ausw&#228;hlen.</p></div>
+      <div class="empty"><div class="empty-icon">&#128202;</div><p>Lade Logs im Analysis tab, dann hier Select Pull.</p></div>
     </div>
   </div>
 </div>
-
-<!-- APL ANALYZER -->
-<div id="view-apl" class="view">
-  <div class="section">
-    <div class="grid-2" style="gap:20px;margin-bottom:20px">
-      <!-- APL Quelle -->
-      <div class="card">
-        <div class="card-title">&#128203; APL Quelle</div>
-        <div class="flex-gap" style="margin-bottom:12px;flex-wrap:wrap">
-          <select class="boss-select" id="apl-spec-select" style="min-width:200px" onchange="">
-            <option value="">&#8212; Spec w&#228;hlen &#8212;</option>
-          </select>
-          <button class="btn btn-primary" onclick="aplLoadFromGitHub()">&#8659; Von GitHub laden</button>
-        </div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px">oder eigene APL hochladen:</div>
-        <div class="flex-gap">
-          <button class="btn" onclick="document.getElementById('apl-file-input').click()">&#128194; .simc Datei</button>
-          <span id="apl-load-status" style="font-size:12px;color:var(--text-sec)">Keine APL geladen</span>
-          <span id="apl-precompute-status" style="display:none;font-size:11px;color:var(--text-dim);margin-left:10px;padding:2px 8px;background:var(--bg-deep);border-radius:4px;border:1px solid var(--border)"></span>
-        </div>
-        <pre id="apl-raw-preview" style="margin-top:12px;font-size:10px;color:var(--text-dim);font-family:var(--font-mono);max-height:120px;overflow-y:auto;background:var(--bg-deep);border-radius:4px;padding:8px;white-space:pre-wrap;display:none"></pre>
-      </div>
-      <!-- Spieler + Pull -->
-      <div class="card">
-        <div class="card-title">&#128100; Analyse-Ziel</div>
-        <div style="margin-bottom:12px">
-          <label class="ctrl-label" style="display:block;margin-bottom:6px">Spieler</label>
-          <select class="boss-select" id="apl-player-select" style="width:100%" onchange="aplPlayerChanged()">
-            <option value="">&#8212; Spieler w&#228;hlen &#8212;</option>
-          </select>
-        </div>
-        <div>
-          <label class="ctrl-label" style="display:block;margin-bottom:6px">Pull</label>
-          <select class="boss-select" id="apl-pull-select" style="width:100%" onchange="aplPullChanged()">
-            <option value="">&#8212; Pull w&#228;hlen &#8212;</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="runAndRenderAPL()">&#9654; Analyse starten</button>
-      </div>
-    </div>
-    <div id="apl-result">
-      <div class="empty"><div class="empty-icon">&#128203;</div><p>Lade eine APL und w&#228;hle einen Spieler + Pull um die Analyse zu starten.</p></div>
-    </div>
-  </div>
-</div>
-
 <!-- SETTINGS -->
 <div id="view-settings" class="view">
   <div class="settings-section">
@@ -407,10 +367,20 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
         <option value="minor">Minor</option>
         <option value="consumable">Consumable</option>
       </select>
-      <button class="btn btn-primary" onclick="addCooldown()">+ Hinzuf&#252;gen</button>
+      <button class="btn btn-primary" onclick="addCooldown()">+ Add</button>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn" onclick="resetCooldowns()">&#8635; Defaults wiederherstellen</button>
+      <button class="btn" onclick="resetCooldowns()">&#8635; Restore Defaults</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h3>&#128608; Boss Abilities</h3>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Select which boss abilities are shown in the CD Timeline and Raid CDs. Populated automatically when logs are loaded.</p>
+    <div id="boss-ability-list" style="max-height:200px;overflow-y:auto;margin-bottom:10px"><div style="font-size:12px;color:var(--text-dim)">Load logs to see boss abilities.</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="selectAllBossAbilities(true)">&#9745; Select All</button>
+      <button class="btn" onclick="selectAllBossAbilities(false)">&#9744; Deselect All</button>
     </div>
   </div>
 
@@ -420,7 +390,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     <div class="cd-list" id="off-cd-items"></div>
     <div class="add-cd-row" style="margin-top:10px">
       <input type="text" class="text-input" id="new-off-cd-name" placeholder="z.B. Bloodlust" style="flex:1">
-      <button class="btn btn-primary" onclick="addOffCD()">+ Hinzuf&#252;gen</button>
+      <button class="btn btn-primary" onclick="addOffCD()">+ Add</button>
     </div>
     <div style="margin-top:8px"><button class="btn" onclick="resetOffCDs()">&#8635; Defaults</button></div>
   </div>
@@ -431,17 +401,17 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     <div class="cd-list" id="dps-pot-items"></div>
     <div class="add-cd-row" style="margin-top:10px">
       <input type="text" class="text-input" id="new-dps-pot-name" placeholder="z.B. Potion of Recklessness" style="flex:1">
-      <button class="btn btn-primary" onclick="addDpsPot()">+ Hinzuf&#252;gen</button>
+      <button class="btn btn-primary" onclick="addDpsPot()">+ Add</button>
     </div>
     <div style="margin-top:8px"><button class="btn" onclick="resetDpsPots()">&#8635; Defaults</button></div>
   </div>
 
   <div class="settings-section">
-    <h3>&#128190; Einstellungen Export/Import</h3>
+    <h3>&#128190; Settings Export/Import</h3>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">Alle Cooldown-Listen als JSON exportieren oder importieren.</p>
     <div class="flex-gap">
-      <button class="btn btn-primary" onclick="exportSettings()">&#8659; Als JSON exportieren</button>
-      <button class="btn" onclick="document.getElementById('settings-import-input').click()">&#8657; JSON importieren</button>
+      <button class="btn btn-primary" onclick="exportSettings()">&#8659; Export as JSON</button>
+      <button class="btn" onclick="document.getElementById('settings-import-input').click()">&#8657; Import JSON</button>
     </div>
     <div id="export-preview" style="margin-top:10px;font-size:11px;color:var(--text-dim)"></div>
   </div>
@@ -452,10 +422,10 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     <div class="cd-list" id="raid-cd-items"></div>
     <div class="add-cd-row" style="margin-top:10px">
       <input type="text" class="text-input" id="new-raid-cd-name" placeholder="z.B. Rallying Cry" style="flex:1">
-      <button class="btn btn-primary" onclick="addRaidCD()">+ Hinzuf&#252;gen</button>
+      <button class="btn btn-primary" onclick="addRaidCD()">+ Add</button>
     </div>
     <div style="margin-top:10px">
-      <button class="btn" onclick="resetRaidCDs()">&#8635; Defaults wiederherstellen</button>
+      <button class="btn" onclick="resetRaidCDs()">&#8635; Restore Defaults</button>
     </div>
   </div>
 
@@ -466,16 +436,13 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
       <input type="number" class="num-input" id="small-heal-pct" value="2" min="0" max="20" style="width:60px">
       <span class="ctrl-label">% Max-HP</span>
     </div>
-    <p style="font-size:11px;color:var(--text-dim);margin-top:6px">Aufeinanderfolgende Heal-Events unter diesem Schwellenwert werden im Death-Recap zusammengefasst. 0 = deaktiviert.</p>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:6px">Aufeinanderfolgende Heal-Events unter diesem Schwellenwert werden im Death-Recap zusammengefasst. 0 = deactiveiert.</p>
   </div>
 </div>
 
 </main>
 <input type="file" id="live-file-input" accept=".txt,.log" onchange="handleLiveFile(event)">
-<input type="file" id="analysis-file-input" accept=".txt,.log" multiple onchange="handleAnalysisFiles(event)">
-<input type="file" id="apl-file-input" accept=".simc,.txt" onchange="aplLoadFromFile(event)">
-<input type="file" id="settings-import-input" accept=".json" onchange="importSettings(event)">
-<script id="worker-src" type="text/plain">
+<input type="file" id="analysis-file-input" accept=".txt,.log" multiple onchange="handleAnalysisFiles(event)"><script id="worker-src" type="text/plain">
 
 const DEATH_CONTEXT_WINDOW = 5000;
 
@@ -625,15 +592,20 @@ function processLine(line) {
     if (currentPull) { currentPull.endTime = timestamp; currentPull.success = false; pulls.push({...currentPull}); }
     currentPull = {
       encounterId: parts[1], bossName: parts[2], startTime: timestamp, endTime: null, success: false,
+      _encounterBossName: parts[2].replace(/"/g,''), // raw boss name for cast filtering
       deaths: [], events: [{ type:'start', offsetMs:0, text:'Pull gestartet', detail:parts[2] }],
       raidCDs: [],  // {offsetMs, caster, spell, spellId}
       playerCasts: [],  // {offsetMs, playerName, spell, spellId, runicPower}
       buffEvents: [],    // {ts, type, destName, spell, stack}
       rezzEvents: [],   // {offsetMs, targetName, targetGUID, caster, spell}
+      bossCasts: [],    // {offsetMs, bossName, spell, spellId}
       perfData: { damage:{}, healing:{}, casts:{}, resources:{}, absorbs:{} },
     };
   } else if (event === 'ENCOUNTER_END' && currentPull) {
     currentPull.endTime = timestamp;
+    // Filter boss casts: remove any spell that players also cast in this pull (false positives from pets/mirrors)
+    const _playerSpellSet = new Set(currentPull.playerCasts.map(c=>c.spell));
+    currentPull.bossCasts = currentPull.bossCasts.filter(c=>!_playerSpellSet.has(c.spell));
     currentPull.success = parts[5] === '1';
     currentPull.events.push({
       type: currentPull.success ? 'end-kill' : 'end-wipe',
@@ -681,6 +653,18 @@ function processLine(line) {
       pd[cN].spells['Melee'].dmg+=dmg;pd[cN].spells['Melee'].hits++;
     }
     // raidCDs are now tracked via SPELL_CAST_SUCCESS (more reliable caster info)
+    // Boss ability casts — only hostile NPC units (REACTION_HOSTILE=0x40, TYPE_NPC=0x800)
+    if ((parts[1].startsWith('Creature-') || parts[1].startsWith('Vehicle-')) && currentPull && spellName) {
+      const srcFlags = parseInt(parts[3], 16) || 0;
+      const isHostile = (srcFlags & 0x40) !== 0;  // COMBATLOG_OBJECT_REACTION_HOSTILE
+      if (isHostile) {
+        const offs2 = timestamp - currentPull.startTime;
+        const bossNm2 = parts[2].replace(/"/g,'');
+        if (bossNm2 && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offs2)<500)) {
+          currentPull.bossCasts.push({ offsetMs: offs2, bossName: bossNm2, spell: spellName, spellId: parts[9] });
+        }
+      }
+    }
   } else if (event === 'SPELL_ENERGIZE' || event === 'SPELL_PERIODIC_ENERGIZE') {
     if(parts[1].startsWith('Player-')&&currentPull){
       const cN=parts[2],sN=parts[10],rt=parts[33];
@@ -988,8 +972,7 @@ function switchTab(tab) {
     const el = document.getElementById('view-'+t);
     if (el) el.classList.toggle('active', t===tab);
   });
-  if (tab==='settings') renderSettings();
-  if (tab==='apl') renderAPLTab();
+  if (tab==='settings') { renderSettings(); renderBossAbilitySettings(); }
   if (tab==='perf') renderPerfTab();
   // Restore scroll position for this tab
   requestAnimationFrame(() => window.scrollTo(0, _tabScrollPos[tab] || 0));
@@ -1123,7 +1106,7 @@ function deltaParseLines(lines) {
     } else if(ev==='ENCOUNTER_END'&&state.currentPull) {
       state.currentPull.endTime=ts; state.currentPull.success=parts[5]==='1';
       state.currentPull.events.push({type:state.currentPull.success?'end-kill':'end-wipe',
-        offsetMs:ts-state.currentPull.startTime,text:state.currentPull.success?'Boss besiegt':'Wipe',
+        offsetMs:ts-state.currentPull.startTime,text:state.currentPull.success?'Boss besiegt':'wipe',
         detail:formatDuration(ts-state.currentPull.startTime)});
       mergeLivePull({...state.currentPull}); state.currentPull=null;
     } else if(ev==='UNIT_DIED') {
@@ -1217,33 +1200,33 @@ function renderLive() {
   const active=livePulls.length?livePulls[livePulls.length-1]:null;
   const totalDeaths=livePulls.reduce((a,p)=>a+p.deaths.length,0);
   document.getElementById('stat-pull-num').textContent=active?'Pull #'+active.num:'--';
-  document.getElementById('stat-boss-name').textContent=active?active.bossName:'Kein Pull';
+  document.getElementById('stat-boss-name').textContent=active?active.bossName:'No Pull';
   if(active?.inProgress){
     document.getElementById('stat-duration').textContent=formatDuration(Date.now()-active.startTime);
     document.getElementById('stat-status-badge').innerHTML='<span class="badge badge-active">&#9889; Aktiv</span>';
   } else if(active) {
     document.getElementById('stat-duration').textContent=formatDuration(active.endTime-active.startTime);
-    document.getElementById('stat-status-badge').innerHTML=active.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">Wipe</span>';
+    document.getElementById('stat-status-badge').innerHTML=active.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">wipe</span>';
   } else {
     document.getElementById('stat-duration').textContent='--';
     document.getElementById('stat-status-badge').innerHTML='';
   }
   document.getElementById('stat-deaths-current').textContent=active?.deaths.length??0;
   document.getElementById('stat-pulls-total').textContent=livePulls.length;
-  document.getElementById('stat-deaths-total').textContent=totalDeaths+' Tode gesamt';
+  document.getElementById('stat-deaths-total').textContent=totalDeaths+' Total Deaths';
   const dl=document.getElementById('live-deaths-list');
   dl.innerHTML=(active?.deaths.length)
     ?active.deaths.map(d=>'<div class="death-entry"><span>&#128128;</span><div class="death-name">'+escHtml(d.name)+'</div><div class="death-time">'+formatOffset(d.offsetMs)+'</div><div class="death-cause">'+spellLink(d.cause,null,d.causeId)+'</div></div>').join('')
-    :'<div class="empty"><div class="empty-icon">&#128737;</div><p>Keine Tode</p></div>';
+    :'<div class="empty"><div class="empty-icon">&#128737;</div><p>None Tode</p></div>';
   const tl=document.getElementById('live-timeline');
   tl.innerHTML=(active?.events.length)
     ?'<div class="timeline">'+active.events.map(e=>'<div class="timeline-event '+e.type+'"><div class="timeline-time">'+formatOffset(e.offsetMs)+'</div><div class="timeline-text">'+escHtml(e.text)+'</div>'+(e.detail?'<div class="timeline-detail">'+escHtml(e.detail)+'</div>':'')+'</div>').join('')+'</div>'
-    :'<div class="empty"><div class="empty-icon">&#9201;</div><p>Warte auf Pull...</p></div>';
+    :'<div class="empty"><div class="empty-icon">&#9201;</div><p>Waiting for pull...</p></div>';
   // Auto-select latest finished pull
   const _fin = livePulls.filter(p=>!p.inProgress);
   if (_fin.length) selectedLivePullNum = _fin[_fin.length-1].num;
   renderLiveHistory();
-  if (typeof renderLiveCDPanel === 'function') renderLiveCDPanel();
+  renderLiveCDPanel();
 }
 function renderLiveHistory() {
   const finished=livePulls.filter(p=>!p.inProgress);
@@ -1252,9 +1235,9 @@ function renderLiveHistory() {
   hl.innerHTML=finished.length
     ?[...finished].reverse().map(p=>{
         const vd=limit>0?p.deaths.slice(0,limit):p.deaths;
-        return '<div class="pull-row'+(selectedLivePullNum===p.num?' selected':'')+'" onclick="showLivePullDetail('+p.num+')"><span class="pull-num">#'+p.num+'</span><span class="pull-boss">'+escHtml(p.bossName)+'</span><span class="pull-duration">'+formatDuration(p.endTime-p.startTime)+'</span><span class="pull-deaths '+(vd.length?'has-deaths':'no-deaths')+'">'+(vd.length?'&#128128; '+vd.length:'&#9989; 0')+'</span><span>'+(p.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">Wipe</span>')+'</span></div>';
+        return '<div class="pull-row'+(selectedLivePullNum===p.num?' selected':'')+'" onclick="showLivePullDetail('+p.num+')"><span class="pull-num">#'+p.num+'</span><span class="pull-boss">'+escHtml(p.bossName)+'</span><span class="pull-duration">'+formatDuration(p.endTime-p.startTime)+'</span><span class="pull-deaths '+(vd.length?'has-deaths':'no-deaths')+'">'+(vd.length?'&#128128; '+vd.length:'&#9989; 0')+'</span><span>'+(p.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">wipe</span>')+'</span></div>';
       }).join('')
-    :'<div class="empty"><p>Keine Pulls</p></div>';
+    :'<div class="empty"><p>No Pulls</p></div>';
 }
 function renderLiveCDPanel() {
   const panel = document.getElementById('live-cd-panel');
@@ -1263,7 +1246,8 @@ function renderLiveCDPanel() {
   const pull = selectedLivePullNum ? livePulls.find(p=>p.num===selectedLivePullNum) : null;
   if (!pull) { panel.style.display='none'; return; }
   panel.style.display = 'block';
-  if (raidEl) raidEl.innerHTML = buildRaidCDHTML(pull) || '';
+  const _sbL=document.getElementById('live-cd-show-boss')?.checked!==false;
+  if (raidEl) { raidEl.innerHTML=buildRaidCDHTML(pull,_sbL)||''; enrichBossIcons(raidEl); }
   renderLiveCDChart();
 }
 
@@ -1306,17 +1290,7 @@ function syncTabSelection(pullNum, playerName) {
     const perfPlayerSel = document.getElementById('perf-player-select');
     if (perfPlayerSel) perfPlayerSel.value = playerName;
   }
-  // Sync to APL tab
-  if (pullNum !== undefined && pullNum !== null) {
-    aplSelectedPull = pullNum;
-    const aplPullSel = document.getElementById('apl-pull-select');
-    if (aplPullSel) aplPullSel.value = pullNum;
-  }
-  if (playerName !== undefined && playerName !== null) {
-    aplSelectedPlayer = playerName;
-    const aplPlayerSel = document.getElementById('apl-player-select');
-    if (aplPlayerSel) aplPlayerSel.value = playerName;
-  }
+
 }
 
 function openAnalysisFiles(){document.getElementById('analysis-file-input').click();}
@@ -1347,91 +1321,27 @@ async function handleAnalysisFiles(evt) {
 }
 function clearAnalysis(){
   analysisFileMeta=[];analysisPulls=[];selectedPullNum=null;selectedDeathIdx=null;selectedPlayer=null;selectedCause=null;Object.keys(_playerColorCache).forEach(k=>delete _playerColorCache[k]);
-  Object.keys(_aplResultCache).forEach(k=>delete _aplResultCache[k]);
   document.getElementById('analysis-files-list').innerHTML='';
-  document.getElementById('boss-filter').innerHTML='<option value="">-- Alle Bosse --</option>';
+  document.getElementById('boss-filter').innerHTML='<option value="">-- All Bosses --</option>';
   document.getElementById('an-pull-detail').style.display='none';
   const ov2=document.getElementById('an-raid-cd-overview');if(ov2)ov2.style.display='none';
   renderAnalysis([]);
 }
 function removeAnalysisFile(i){analysisFileMeta.splice(i,1);rebuildAnalysis();}
-function precomputeAPLCache() {
-  if (!aplParsed) return; // no APL loaded yet — skip
-  const tasks = [];
-  // Build one task per (pull, player) combination
-  for (const pull of analysisPulls) {
-    if (!pull.perfData) continue;
-    const allNames = new Set([
-      ...Object.keys(pull.perfData.damage||{}).map(n=>n.split('-')[0]),
-      ...Object.keys(pull.perfData.casts||{}).map(n=>n.split('-')[0]),
-    ]);
-    for (const name of allNames) {
-      const castEntry = Object.entries(pull.perfData.casts||{}).find(([n])=>n.split('-')[0]===name);
-      if (!castEntry) continue;
-      tasks.push({ pull, playerName: name, casts: castEntry[1] });
-    }
-  }
-  if (!tasks.length) return;
-
-  // Show progress
-  const statusEl = document.getElementById('apl-precompute-status');
-  const total = tasks.length;
-  let done = 0;
-
-  if (statusEl) {
-    statusEl.textContent = 'APL vorberechnen: 0/' + total;
-    statusEl.style.display = 'inline';
-  }
-
-  // Run via requestIdleCallback to avoid blocking UI
-  let idx = 0;
-  const BATCH = 5; // compute 5 per idle slot
-
-  function runBatch(deadline) {
-    let ran = 0;
-    while (idx < tasks.length && ran < BATCH && (deadline ? deadline.timeRemaining() > 1 : true)) {
-      const {pull, playerName, casts} = tasks[idx++];
-      getAPLResultCached(pull, playerName, casts);
-      done++; ran++;
-    }
-    if (statusEl) {
-      statusEl.textContent = done < total
-        ? 'APL: ' + done + '/' + total
-        : 'APL ✓ (' + total + ' Spieler)';
-    }
-    if (idx < tasks.length) {
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(runBatch, {timeout: 500});
-      } else {
-        setTimeout(() => runBatch(null), 10);
-      }
-    } else {
-      // Done — refresh current perf view if open
-      const perfView = document.getElementById('view-perf');
-      if (perfView && perfView.classList.contains('active') && perfSelectedPull) {
-        renderPerfResult();
-      }
-      setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 3000);
-    }
-  }
-
-  if (typeof requestIdleCallback !== 'undefined') {
-    requestIdleCallback(runBatch, {timeout: 500});
-  } else {
-    setTimeout(() => runBatch(null), 50);
-  }
-}
 
 function rebuildAnalysis(){
   document.getElementById('analysis-files-list').innerHTML=analysisFileMeta.map((f,i)=>'<div class="file-chip">&#128196; '+escHtml(f.name)+' <span style="color:var(--text-dim)">('+formatBytes(f.size)+')</span><span class="chip-remove" onclick="removeAnalysisFile('+i+')">&#10005;</span></div>').join('');
   let num=0;
-  analysisPulls=analysisFileMeta.flatMap(fm=>fm.pulls.map(p=>({...p,num:++num,sourceFile:fm.name})));
+  const _rawPulls = analysisFileMeta.flatMap(fm=>fm.pulls.map(p=>({...p,sourceFile:fm.name})));
+  _rawPulls.sort((a,b)=>a.startTime-b.startTime);
+  analysisPulls = _rawPulls.map(p=>({...p,num:++num}));
   const bosses=[...new Set(analysisPulls.map(p=>p.bossName))].sort();
   const sel=document.getElementById('boss-filter');
   const cur=sel.value;
-  sel.innerHTML='<option value="">-- Alle Bosse --</option>'+bosses.map(b=>'<option value="'+escHtml(b)+'"'+(b===cur?' selected':'')+'>'+escHtml(b)+'</option>').join('');
+  sel.innerHTML='<option value="">-- All Bosses --</option>'+bosses.map(b=>'<option value="'+escHtml(b)+'"'+(b===cur?' selected':'')+'>'+escHtml(b)+'</option>').join('');
   filterBoss();
   precomputeAPLCache();
+  renderBossAbilitySettings();
 }
 function renderCDTimeline() {
   const el = document.getElementById('an-cd-timeline');
@@ -1440,21 +1350,86 @@ function renderCDTimeline() {
   const pull = analysisPulls.find(p => p.num === selectedPullNum);
   if (!pull) { card.style.display = 'none'; return; }
   card.style.display = 'block';
+  // Show player filter indicator in title
+  const _titleEl = card.querySelector('.card-title');
+  if (_titleEl) {
+    const _existing = _titleEl.querySelector('.player-filter-badge');
+    if (_existing) _existing.remove();
+    if (selectedPlayer) {
+      const _badge = document.createElement('span');
+      _badge.className = 'player-filter-badge';
+      _badge.style.cssText = 'margin-left:8px;font-size:10px;font-weight:400;color:'+getPlayerClassColor(pull,selectedPlayer)+';text-transform:none;letter-spacing:0';
+      _badge.textContent = '— ' + selectedPlayer;
+      _titleEl.appendChild(_badge);
+    }
+  }
 
   const showDef  = document.getElementById('cd-show-def')?.checked;
   const showOff  = document.getElementById('cd-show-off')?.checked;
   const showHeal = document.getElementById('cd-show-heal')?.checked;
   const showDps  = document.getElementById('cd-show-dps')?.checked;
+  const showBoss = document.getElementById('cd-show-boss')?.checked;
 
   if (typeof _cdChartMode !== 'undefined' && _cdChartMode === 'B') {
-    el.innerHTML = buildStackedBarsChart(pull, {showDef, showOff, showHeal, showDps});
+    const _fp2 = selectedPlayer || null;
+    el.innerHTML = buildStackedBarsChart(pull, {showDef, showOff, showHeal, showDps, showBoss, filterPlayer:_fp2});
+    setTimeout(()=>{ enrichBossIcons(el); enrichSpellLinks(el); }, 50);
   } else {
     const _dcId = 'dc-' + (pull.num||0) + '-0';
-    el.innerHTML = buildDensityChart(pull, {showDef, showOff, showHeal, showDps}, _dcId);
-    setTimeout(() => initDensityChartHover(_dcId), 50);
+    const _fp = selectedPlayer || null;
+    el.innerHTML = buildDensityChart(pull, {showDef, showOff, showHeal, showDps, showBoss, filterPlayer:_fp}, _dcId);
+    setTimeout(() => { initDensityChartHover(_dcId); enrichSpellLinks(el); enrichBossIcons(el).then(()=>rehintWowhead()); }, 50);
   }
 }
 
+// Boss ability visibility per spell
+let _bossAbilityEnabled = {};
+function isBossAbilityEnabled(spell) {
+  if (!Object.keys(_bossAbilityEnabled).length) return true;
+  return _bossAbilityEnabled[spell] !== false;
+}
+function saveBossAbilities(){try{localStorage.setItem('wow_boss_abilities',JSON.stringify(_bossAbilityEnabled));}catch(e){}}
+const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Iris of Oblivion']);
+const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Termination Prism','Terminate','Dark Quasar']);
+function loadBossAbilities(){
+  try{const s=localStorage.getItem('wow_boss_abilities');if(s){_bossAbilityEnabled=JSON.parse(s);return;}}catch(e){}
+  // No saved prefs — apply Midnight Falls defaults
+  _MIDNIGHT_ENABLED.forEach(k=>_bossAbilityEnabled[k]=true);
+}
+function renderBossAbilitySettings(){
+  const el=document.getElementById('boss-ability-list'); if(!el)return;
+  const allBossSpells={};
+  for(const pull of analysisPulls)for(const c of(pull.bossCasts||[])){
+    if(!allBossSpells[c.spell])allBossSpells[c.spell]={spellId:c.spellId,boss:c.bossName,count:0};
+    allBossSpells[c.spell].count++;
+  }
+  if(!Object.keys(allBossSpells).length){el.innerHTML='<div style="font-size:12px;color:var(--text-dim)">No boss abilities found. Load logs first.</div>';return;}
+  for(const spell of Object.keys(allBossSpells)){
+    if(_bossAbilityEnabled[spell]===undefined){
+      // Default: enabled if in MIDNIGHT_ENABLED set, disabled otherwise
+      _bossAbilityEnabled[spell] = _MIDNIGHT_ENABLED.has(spell);
+    }
+  }
+  el.innerHTML=Object.entries(allBossSpells).sort((a,b)=>a[0].localeCompare(b[0])).map(([spell,info])=>{
+    const enabled=_bossAbilityEnabled[spell]!==false;
+    const safeSpell=escHtml(spell).replace(/'/g,"\\'");
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'
+      +'<input type="checkbox" '+(enabled?'checked':'')+' onchange="toggleBossAbility(\''+safeSpell+'\')" style="cursor:pointer;width:14px;height:14px;flex-shrink:0">'
+      +'<span style="flex:1;font-size:12px">'+spellLink(spell,'',info.spellId)+'</span>'
+      +'<span style="color:var(--text-dim);font-size:10px;font-family:var(--font-mono)">'+escHtml(info.boss)+' &middot; '+info.count+'x</span>'
+      +'</div>';
+  }).join('');
+  setTimeout(()=>enrichSpellLinks(el),100);
+}
+function toggleBossAbility(spell){
+  _bossAbilityEnabled[spell]=!(_bossAbilityEnabled[spell]!==false);
+  saveBossAbilities(); _liveUpdateCDCharts();
+  renderBossAbilitySettings();
+}
+function selectAllBossAbilities(val){
+  for(const k of Object.keys(_bossAbilityEnabled))_bossAbilityEnabled[k]=val;
+  saveBossAbilities(); renderBossAbilitySettings(); _liveUpdateCDCharts();
+}
 let _cdChartMode = 'D';
 let _liveCDChartMode = 'D';
 function toggleLiveCDChartMode(){
@@ -1466,17 +1441,18 @@ function toggleLiveCDChartMode(){
 function renderLiveCDChart(){
   const el=document.getElementById('live-cd-chart');if(!el)return;
   const pull=selectedLivePullNum?livePulls.find(p=>p.num===selectedLivePullNum):null;
-  if(!pull){el.innerHTML='<div class="empty"><p>Pull auswählen</p></div>';return;}
+  if(!pull){el.innerHTML='<div class="empty"><p>Select pull</p></div>';return;}
   const sD=document.getElementById('live-cd-show-def')?.checked;
   const sO=document.getElementById('live-cd-show-off')?.checked;
   const sH=document.getElementById('live-cd-show-heal')?.checked;
   const sP=document.getElementById('live-cd-show-dps')?.checked;
   if(_liveCDChartMode==='B'){
-    el.innerHTML=buildStackedBarsChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP});
+    const sBoss=document.getElementById('live-cd-show-boss')?.checked;
+    el.innerHTML=buildStackedBarsChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP,showBoss:sBoss});
   } else {
     const dcId='dc-live-panel-'+(pull.num||0);
-    el.innerHTML=buildDensityChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP},dcId);
-    setTimeout(()=>initDensityChartHover(dcId),50);
+    el.innerHTML=buildDensityChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP,showBoss:sBoss},dcId);
+    setTimeout(()=>{ initDensityChartHover(dcId); enrichBossIcons(document.getElementById('live-cd-chart')); },50);
   }
 }
 function toggleCDChartMode() {
@@ -1486,19 +1462,24 @@ function toggleCDChartMode() {
   renderCDTimeline();
 }
 
-function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true, showDps=true} = {}) {
+function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true, showDps=true, showBoss=true, filterPlayer=null} = {}) {
   const defMap=getCooldownMap(),raidSet=getRaidCDSet(),offSet=new Set(userOffCDs),potSet=new Set(userDpsPots);
   const healSpells=new Set(['Healthstone','Health Potion','Silvermoon Health Potion','Refreshing Healing Potion']);
   const pullDurMs=pull.endTime-pull.startTime;
-  if(!pullDurMs)return '<div class="empty"><p>Keine Daten</p></div>';
+  if(!pullDurMs)return '<div class="empty"><p>No Data</p></div>';
   const allCasts=[];
-  if(Array.isArray(pull.playerCasts)){for(const c of pull.playerCasts){if(c.spell)allCasts.push({offsetMs:c.offsetMs,spell:c.spell,player:(c.playerName||'?').split('-')[0],color:getPlayerClassColor(pull,(c.playerName||'?').split('-')[0])||'#aaa'});}}
+  if(Array.isArray(pull.playerCasts)){for(const c of pull.playerCasts){const _ps=(c.playerName||'?').split('-')[0];if(filterPlayer){const _fL=filterPlayer.toLowerCase(),_pL=_ps.toLowerCase();if(!_pL.includes(_fL)&&!_fL.includes(_pL))continue;}if(c.spell)allCasts.push({offsetMs:c.offsetMs,spell:c.spell,player:_ps,color:getPlayerClassColor(pull,_ps)||'#aaa'});}}
   const raidCasts=(pull.raidCDs||[]).map(c=>({offsetMs:c.offsetMs,spell:c.spell,player:(c.caster||'?').split('-')[0],color:getPlayerClassColor(pull,(c.caster||'?').split('-')[0])||'#c8a84b'}));
   const cats=[];
-  if(showDef){const c=allCasts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));if(c.length)cats.push({name:'Defensiv-CDs',casts:c,col:'#c8a84b'});}
+  if(showDef){const c=allCasts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));if(c.length)cats.push({name:'Defensive CDs',casts:c,col:'#c8a84b'});}
   if(showOff){const c=allCasts.filter(c=>offSet.has(c.spell));if(c.length)cats.push({name:'Offensive CDs',casts:c,col:'#e05050'});}
   if(showHeal){const c=allCasts.filter(c=>healSpells.has(c.spell));if(c.length)cats.push({name:'Healpots/Stones',casts:c,col:'#50c878'});}
   if(showDps){const c=allCasts.filter(c=>potSet.has(c.spell)&&!healSpells.has(c.spell));if(c.length)cats.push({name:'DPS-Pots',casts:c,col:'#3FC7EB'});}
+  // Boss Abilities as a row in the chart
+  if(showBoss&&pull.bossCasts&&pull.bossCasts.length>0){
+    const _bCasts=pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).map(c=>({offsetMs:c.offsetMs,spell:c.spell,player:c.bossName,color:'#aaaaaa'}));
+    if(_bCasts.length)cats.push({name:'Boss Abilities',casts:_bCasts,col:'#aaaaaa'});
+  }
   // Dedup: same spell+player within 500ms window
   cats.forEach(cat => {
     const seen = new Set();
@@ -1507,7 +1488,7 @@ function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true,
       return seen.has(k) ? false : (seen.add(k), true);
     });
   });
-  if(!cats.length)return '<div class="empty" style="padding:12px"><p>Keine Daten.</p></div>';
+  if(!cats.length)return '<div class="empty" style="padding:12px"><p>No Data.</p></div>';
   const W=900,PAD_L=110,PAD_R=12,PAD_T=8,PAD_B=24,ROW_H=36,STRIPE=4,GAP=2;
   const H=cats.length*ROW_H+PAD_T+PAD_B,tw=W-PAD_L-PAD_R;
   const tx=ms=>PAD_L+Math.max(0,Math.min(1,ms/pullDurMs))*tw;
@@ -1515,7 +1496,7 @@ function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true,
   let svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;background:var(--bg-deep);border-radius:6px">';
   for(let ms=0;ms<=pullDurMs;ms+=tick){const x=tx(ms).toFixed(1);svg+='<line x1="'+x+'" y1="'+PAD_T+'" x2="'+x+'" y2="'+(H-PAD_B)+'" stroke="#1e2530" stroke-width="1"/><text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="#4a5568">'+formatDuration(ms)+'</text>';}
   svg+='<line x1="'+PAD_L+'" y1="'+PAD_T+'" x2="'+PAD_L+'" y2="'+(H-PAD_B)+'" stroke="#252b36" stroke-width="1"/>';
-  (pull.deaths||[]).forEach(d=>{const x=tx(d.offsetMs).toFixed(1);svg+='<line x1="'+x+'" y1="'+PAD_T+'" x2="'+x+'" y2="'+(H-PAD_B)+'" stroke="rgba(192,57,43,0.3)" stroke-width="1" stroke-dasharray="3,2"/>';});
+  (pull.deaths||[]).forEach(d=>{const x=tx(d.offsetMs).toFixed(1);svg+='<line x1="'+x+'" y1="'+PAD_T+'" x2="'+x+'" y2="'+(H-PAD_B)+'" stroke="rgba(192,57,43,0.55)" stroke-width="1.5"><title>☠ '+escHtml(d.name||' ')+' @ '+formatDuration(d.offsetMs)+(d.cause?' — '+escHtml(d.cause):'')+'</title></line>';});
   cats.forEach((cat,idx)=>{
     const y=PAD_T+idx*ROW_H,midY=y+ROW_H/2,visRows=Math.floor((ROW_H-4)/(STRIPE+GAP));
     if(idx%2===0)svg+='<rect x="0" y="'+y+'" width="'+W+'" height="'+ROW_H+'" fill="rgba(255,255,255,0.015)"/>';
@@ -1529,28 +1510,38 @@ function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true,
       svg+='<rect x="'+(x-1.5).toFixed(1)+'" y="'+(y+3+row*(STRIPE+GAP))+'" width="3" height="'+STRIPE+'" rx="1" fill="'+c.color+'" opacity="0.9"><title>'+escHtml(c.player)+' — '+escHtml(c.spell)+' @ '+formatDuration(c.offsetMs)+'</title></rect>';
     });
   });
+  // Boss cast overlay lines
+  if(showBoss&&pull.bossCasts&&pull.bossCasts.length>0){
+    const _sB=new Set();
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000);if(_sB.has(_k))return;_sB.add(_k);
+      const _x=tx(c.offsetMs).toFixed(1);
+      svg+='<line x1="'+_x+'" y1="'+PAD_T+'" x2="'+_x+'" y2="'+(H-PAD_B)+'" stroke="rgba(180,180,180,0.35)" stroke-width="1.5" stroke-dasharray="4,2"><title>'+escHtml(c.bossName||'')+': '+escHtml(c.spell)+' @ '+formatDuration(c.offsetMs)+'</title></line>';
+    });
+  }
   svg+='</svg>';
   return svg;
 }
-
-
-function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, showDps=true} = {}, chartIdOverride) {
+function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, showDps=true, showBoss=true, filterPlayer=null} = {}, chartIdOverride) {
   const defMap = getCooldownMap(), raidSet = getRaidCDSet();
   const offSet = new Set(userOffCDs), potSet = new Set(userDpsPots);
   const healSpells = new Set(['Healthstone','Health Potion','Silvermoon Health Potion','Refreshing Healing Potion','Cauterizing Shadows']);
   const pullDurMs = pull.endTime - pull.startTime;
-  if (!pullDurMs) return '<div class="empty"><p>Keine Daten</p></div>';
+  if (!pullDurMs) return '<div class="empty"><p>No Data</p></div>';
 
   // Collect casts per category with full cast info for tooltip
   const allCasts = [];
   if (Array.isArray(pull.playerCasts)) {
     for (const c of pull.playerCasts) {
+      const _pshort = (c.playerName||'?').split('-')[0];
+      if (filterPlayer) { const _fpL=filterPlayer.toLowerCase(), _psL=_pshort.toLowerCase();
+        if (!_psL.includes(_fpL) && !_fpL.includes(_psL)) continue; }
       if (c.spell) allCasts.push({
         offsetMs: c.offsetMs,
         spell: c.spell,
         spellId: c.spellId,
-        player: (c.playerName||'?').split('-')[0],
-        color: getPlayerClassColor(pull, (c.playerName||'?').split('-')[0]) || '#aaa',
+        player: _pshort,
+        color: getPlayerClassColor(pull, _pshort) || '#aaa',
       });
     }
   }
@@ -1564,7 +1555,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   const cats = [];
   if (showDef) {
     const c = allCasts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));
-    if (c.length) cats.push({name:'Defensiv-CDs', casts:c, col:'#c8a84b'});
+    if (c.length) cats.push({name:'Defensive CDs', casts:c, col:'#c8a84b'});
   }
   if (showOff) {
     const c = allCasts.filter(c=>offSet.has(c.spell));
@@ -1595,7 +1586,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
       return seen.has(k) ? false : (seen.add(k), true);
     });
   });
-  if (!cats.length) return '<div class="empty" style="padding:12px"><p>Keine Daten für diese Kategorien.</p></div>';
+  if (!cats.length) return '<div class="empty" style="padding:12px"><p>No Data für diese Kategorien.</p></div>';
 
   // Histogram: count casts per fixed bucket
   const HOVER_WINDOW_MS = 12000;
@@ -1621,7 +1612,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   // Unique chart ID so multiple charts can coexist (live + analysis)
   const chartId = chartIdOverride || ('dc-' + (pull.num||0) + '-' + Date.now());
 
-  let svg = `<svg id="${chartId}" viewBox="0 0 ${W} ${H}" width="100%" style="display:block;background:var(--bg-deep);border-radius:6px;cursor:crosshair">`;
+  let svg = `<svg id="${chartId}" viewBox="0 0 ${W} ${H}" width="100%" style="display:block;background:var(--bg-deep);border-radius:6px;cursor:crosshair;overflow:hidden">`;
 
   // Y-axis grid
   for (let v = 1; v <= Math.ceil(globalMax); v++) {
@@ -1643,7 +1634,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   // Deaths
   (pull.deaths||[]).forEach(d => {
     const x = tx(d.offsetMs).toFixed(1);
-    svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="rgba(192,57,43,0.3)" stroke-width="1" stroke-dasharray="3,2"/>`;
+    svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="rgba(192,57,43,0.55)" stroke-width="1.5"><title>☠ ${escHtml(d.name||'?')} @ ${formatDuration(d.offsetMs)}${d.cause?' — '+escHtml(d.cause):''}</title></line>`;
   });
 
   // Step chart: each bucket = one horizontal bar
@@ -1664,6 +1655,16 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
     svg += `<path d="M${tx(0).toFixed(1)},${baseY}${linePts}" fill="none" stroke="${cat.col}" stroke-width="2" stroke-linejoin="miter" opacity="0.9"/>`;
   });
 
+  // Boss cast lines — full-height semi-transparent dashed (like deaths)
+  if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
+    const _seenBC = new Set();
+    const _twBC = W - PAD_L - PAD_R;
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenBC.has(_k))return; _seenBC.add(_k);
+      const _x=(PAD_L+(c.offsetMs/pullDurMs)*_twBC).toFixed(1);
+      svg+=`<line x1="${_x}" y1="${PAD_T}" x2="${_x}" y2="${H-PAD_B}" stroke="rgba(180,180,180,0.35)" stroke-width="1.5" stroke-dasharray="4,2"><title>${escHtml(c.bossName||'')}: ${escHtml(c.spell)} @ ${formatDuration(c.offsetMs)}</title></line>`;
+    });
+  }
   // Hover line (initially hidden)
   svg += `<line id="${chartId}-vline" x1="0" y1="${PAD_T}" x2="0" y2="${H-PAD_B}" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="3,2" display="none"/>`;
 
@@ -1673,6 +1674,31 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   svg += '</svg>';
 
   // Store data on window for hover handler (avoids inline <script> issues)
+  // Boss ability icon strip
+  // Boss icons: simple HTML div approach
+  let _bossIconsHtml = '';
+  if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
+    const _seenI=new Set(), _twI=W-PAD_L-PAD_R, _items=[];
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenI.has(_k))return; _seenI.add(_k);
+      _items.push(c);
+    });
+    if (_items.length) {
+      const _parts = _items.map(ic=>{
+        const _nId=ic.spellId&&/^\d+$/.test(String(ic.spellId))?String(ic.spellId):'';
+        const _ca=spellCache['boss_id_'+_nId]||spellCache[ic.spell];
+        const _src=_ca&&_ca.icon?'https://wow.zamimg.com/images/wow/icons/large/'+_ca.icon+'.jpg':'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
+        const _pct=((PAD_L+(ic.offsetMs/pullDurMs)*_twI)/W*100).toFixed(2);
+        return '<a class="q1" href="https://www.wowhead.com/spell='+(_nId||0)+'" data-wowhead="spell='+(_nId||0)+'"'
+          +' title="'+escHtml(ic.spell)+' @ '+formatDuration(ic.offsetMs)+'"'
+          +' style="position:absolute;left:calc('+_pct+'% - 14px);top:0;width:28px;height:28px;border-radius:4px;border:1px solid rgba(180,180,180,0.5);display:block;overflow:hidden;text-decoration:none">'
+          +'<img class="boss-ability-icon" data-spellname="'+escHtml(ic.spell)+'" data-spellid="'+escHtml(ic.spellId||'')+'" src="'+_src+'" style="width:100%;height:100%;display:block;image-rendering:crisp-edges">'
+          +'</a>';
+      });
+      _bossIconsHtml = '<div style="position:relative;height:30px;margin-top:4px">'+_parts.join('')+'</div>';
+    }
+  }
+
   window['_dc_' + chartId] = {
     PAD_L, tw, pullDurMs, W,
     cats: cats.map(cat => ({
@@ -1693,8 +1719,22 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   const tooltipId = chartId + '-tip';
   return '<div style="position:relative">'
     + svg
+    + (_bossIconsHtml||'')
     + '<div id="'+tooltipId+'" style="display:none;position:fixed;background:var(--bg-card);border:1px solid var(--border-lit);border-radius:8px;padding:10px 12px;pointer-events:none;z-index:9999;max-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></div>'
     + '</div>';
+}
+
+function _liveUpdateCDCharts() {
+  // Refresh CD charts after settings change, no log re-read needed
+  if (selectedPullNum) {
+    renderCDTimeline();
+    const ov = document.getElementById('an-raid-cd-overview');
+    if (ov && ov.style.display !== 'none') {
+      const pull = analysisPulls.find(p=>p.num===selectedPullNum);
+      const el = document.getElementById('an-raid-cd-content');
+      if (pull && el) { const _sb2=document.getElementById('cd-show-boss')?.checked!==false; el.innerHTML=buildRaidCDHTML(pull,_sb2)||''; enrichBossIcons(el); }
+    }
+  }
 }
 
 function filterBoss(){
@@ -1724,7 +1764,7 @@ function renderRaidCDOverview(pulls) {
     }
   }
   if (!allCDs.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">&#128737;</div><p>Keine Raid-CDs in den geladenen Pulls</p></div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">&#128737;</div><p>None Raid-CDs in den geladenen Pulls</p></div>';
     return;
   }
 
@@ -1810,11 +1850,11 @@ function renderAnalysis(pulls,deathLimit=0){
   const avgDur=durations.length?durations.reduce((a,b)=>a+b,0)/durations.length:0;
   document.getElementById('an-total-pulls').textContent=pulls.length;
   document.getElementById('an-kills').textContent=kills;
-  document.getElementById('an-kill-rate').textContent='Kill-Rate '+killRate+'%';
+  document.getElementById('an-kill-rate').textContent='Kill Rate '+killRate+'%';
   document.getElementById('an-avg-duration').textContent=formatDuration(avgDur);
   document.getElementById('an-total-deaths').textContent=effectiveDeaths.length;
-  document.getElementById('an-deaths-per-pull').textContent=pulls.length?'&#216; '+(effectiveDeaths.length/pulls.length).toFixed(1)+' / Pull':'&#216; -- / Pull';
-  document.getElementById('an-date-range').textContent=analysisFileMeta.length+' Datei(en)'+(deathLimit?', &#8804;'+deathLimit+' Tode':'');
+  document.getElementById('an-deaths-per-pull').textContent=pulls.length?'Avg '+(effectiveDeaths.length/pulls.length).toFixed(1)+' / Pull':'Avg -- / Pull';
+  document.getElementById('an-date-range').textContent=analysisFileMeta.length+' file(s)'+(deathLimit?', &#8804;'+deathLimit+' Tode':'');
 
   // Calculate average time-to-rez
   const rezzTimes = [];
@@ -1840,7 +1880,7 @@ function renderAnalysis(pulls,deathLimit=0){
   const rezzEl = document.getElementById('an-avg-rezz');
   const rezzSubEl = document.getElementById('an-avg-rezz-sub');
   if (rezzEl) rezzEl.textContent = avgRezz !== null ? formatDuration(Math.round(avgRezz)) : '--';
-  if (rezzSubEl) rezzSubEl.textContent = avgRezz !== null ? rezzTimes.length + ' Rezz(s) erfasst' : 'Keine Rezz-Daten';
+  if (rezzSubEl) rezzSubEl.textContent = avgRezz !== null ? rezzTimes.length + ' Rezz(s) erfasst' : 'No Rez Data';
 
   // Deaths by player — store name as data attribute, no inline JS with name
   const byPlayer={};
@@ -1850,8 +1890,8 @@ function renderAnalysis(pulls,deathLimit=0){
   const playerEl=document.getElementById('an-deaths-by-player');
   const _rp=analysisPulls.find(p=>p.playerCasts&&p.playerCasts.length>0)||null;
   playerEl.innerHTML=pSorted.length
-    ?pSorted.map(([n,c],i)=>{const col=getPlayerClassColor(_rp,n);const nH=col?'<span style="color:'+col+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(n)+'</span>':escHtml(n);const fs=col?'background:linear-gradient(90deg,'+col+'22,'+col+'99);color:'+col+';':'';return '<div class="bar-row player-bar'+(selectedPlayer===n?' active':'')+'" data-player-idx="'+i+'" title="Klick: Todesursachen filtern"><div class="bar-label">'+nH+'</div><div class="bar-track"><div class="bar-fill red" style="width:'+Math.max(8,c/maxP*100)+'%;'+fs+'">'+c+'</div></div></div>';}).join('')
-    :'<div class="empty"><div class="empty-icon">&#128737;</div><p>Keine Tode</p></div>';
+    ?pSorted.map(([n,c],i)=>{const col=getPlayerClassColor(_rp,n);const nH=col?'<span style="color:'+col+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(n)+'</span>':escHtml(n);const fs=col?'background:linear-gradient(90deg,'+col+'22,'+col+'99);color:'+col+';':'';return '<div class="bar-row player-bar'+(selectedPlayer===n?' active':'')+'" data-player-idx="'+i+'" title="Klick: Causes of Death filtern"><div class="bar-label">'+nH+'</div><div class="bar-track"><div class="bar-fill red" style="width:'+Math.max(8,c/maxP*100)+'%;'+fs+'">'+c+'</div></div></div>';}).join('')
+    :'<div class="empty"><div class="empty-icon">&#128737;</div><p>None Tode</p></div>';
   window._playerNames = pSorted.map(([n])=>n);
   playerEl.querySelectorAll('.player-bar').forEach(el=>{
     el.onclick=()=>{ filterByPlayer(window._playerNames[+el.dataset.playerIdx]); };
@@ -1863,7 +1903,7 @@ function renderAnalysis(pulls,deathLimit=0){
     .filter(d=>!selectedCause||(d.cause||'Unbekannt')===selectedCause);
   const causeTitle=document.getElementById('an-death-causes-title');
   if(causeTitle){
-    let titleHtml='&#9888; Todesursachen';
+    let titleHtml='&#9888; Causes of Death';
     if(selectedPlayer) titleHtml+=' &#8212; '+escHtml(selectedPlayer);
     if(selectedCause) titleHtml+=(selectedPlayer?' &amp; ':' &#8212; ')+escHtml(selectedCause);
     if(selectedPlayer||selectedCause){
@@ -1885,12 +1925,12 @@ function renderAnalysis(pulls,deathLimit=0){
   causeEl.innerHTML=cSorted.length
     ?cSorted.map(([c,{count:n,causeId:cid}])=>{
         const isActiveCause=selectedCause===c;
-        return '<div class="bar-row player-bar'+(isActiveCause?' active':'')+'" data-cause="'+escHtml(c)+'" style="cursor:pointer;border-radius:4px;padding:1px 3px" title="Klick: nach dieser Todesursache filtern">'
+        return '<div class="bar-row player-bar'+(isActiveCause?' active':'')+'" data-cause="'+escHtml(c)+'" style="cursor:pointer;border-radius:4px;padding:1px 3px" title="Klick: nach dieser Filter by cause">'
           +'<div class="bar-label"'+(isActiveCause?' style="color:var(--gold)"':'')+'>'+spellLink(c,'cause-link',cid)+'</div>'
           +'<div class="bar-track"><div class="bar-fill gold" style="width:'+Math.max(8,n/maxC*100)+'%">'+n+'</div></div>'
           +'</div>';
       }).join('')
-    :'<div class="empty"><div class="empty-icon">&#9888;</div><p>Keine Todesursachen</p></div>';
+    :'<div class="empty"><div class="empty-icon">&#9888;</div><p>None Causes of Death</p></div>';
   // Wire click handlers (after innerHTML)
   window._causeNames = cSorted.map(([c])=>c);
   causeEl.querySelectorAll('.player-bar[data-cause]').forEach(el=>{
@@ -1908,45 +1948,70 @@ function renderAnalysis(pulls,deathLimit=0){
     const maxDur=Math.max(...durations);
     const w=Math.max(4,Math.min(26,Math.floor(900/pulls.length)));
     // Wrap each bar in a relative div so we can overlay the skull
-    const bars = pulls.map(p=>{
+    // Build bars with file separators
+    const items = []; // mix of bars and separators
+    let lastSrcFile = null;
+    pulls.forEach(p=>{
+      // File separator: vertical divider + date label
+      if (analysisFileMeta.length > 1 && p.sourceFile !== lastSrcFile) {
+        lastSrcFile = p.sourceFile;
+        const dateStr = p.startTime
+          ? new Date(p.startTime).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})
+          : p.sourceFile.replace(/\.[^.]+$/, '').slice(-8);
+        items.push(
+          '<div style="position:relative;flex-shrink:0;width:3px;align-self:stretch;margin:0 5px;background:#c8a84b;opacity:0.7;border-radius:2px">'
+          + '<div style="position:absolute;bottom:calc(100%+3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;color:var(--gold);font-family:var(--font-mono);font-weight:600">'+escHtml(dateStr)+'</div>'
+          + '</div>'
+        );
+      }
       const dur=p.endTime&&p.startTime?p.endTime-p.startTime:0;
       const h=dur?Math.max(4,Math.round(dur/maxDur*72)):4;
       const col=p.success?'var(--green)':'var(--red)';
       const isSelected = p.num === selectedPullNum;
-      // Check if selectedPlayer died in this pull (respecting death limit)
       const playerDied = selectedPlayer
         ? applyDeathLimit(p.deaths, deathLimit).some(d=>d.name===selectedPlayer)
         : false;
-      // Skull + orange overlay when player died
       const skullOverlay = playerDied
         ? '<div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10px;line-height:1">&#128128;</div>'
           + '<div style="position:absolute;inset:0;background:rgba(255,140,0,0.35);border-radius:2px 2px 0 0;pointer-events:none"></div>'
         : '';
-      const title='Pull #'+p.num+': '+escHtml(p.bossName)+'&#10;'+formatDuration(dur)+' · '+(p.success?'Kill':'Wipe')+(playerDied?' · '+escHtml(selectedPlayer)+' gestorben':'');
+      const title='Pull #'+p.num+': '+escHtml(p.bossName)+'&#10;'+formatDuration(dur)+' · '+(p.success?'Kill':'wipe')+(playerDied?' · '+escHtml(selectedPlayer)+' died':'');
       const selRing = isSelected ? 'outline:2px solid var(--gold);outline-offset:1px;z-index:2;' : '';
       const selTag = isSelected ? '<div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:8px;color:var(--gold);white-space:nowrap;margin-bottom:1px;pointer-events:none;font-family:var(--font-mono)">▼</div>' : '';
-      return '<div style="position:relative;flex-shrink:0;width:'+w+'px;display:flex;align-items:flex-end">'
+      items.push(
+        '<div style="position:relative;flex-shrink:0;width:'+w+'px;display:flex;align-items:flex-end">'
         + '<div data-pull-num="'+p.num+'" title="'+title+'" style="width:100%;height:'+h+'px;background:'+col+';border-radius:2px 2px 0 0;cursor:pointer;opacity:'+(isSelected?'1':'0.75')+';transition:opacity .1s;position:relative;'+selRing+'" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='+(isSelected?'1':'0.75')+'" >' + selTag
         + skullOverlay
-        + '</div></div>';
+        + '</div></div>'
+      );
     });
-    chartEl.innerHTML='<div style="display:flex;align-items:flex-end;gap:2px;height:94px;overflow-x:auto;padding-bottom:4px;padding-top:14px">'+bars.join('')+'</div>'
-      +'<div style="font-size:11px;color:var(--text-dim);margin-top:6px">&#128994; Kill &nbsp; &#128308; Wipe'
+    chartEl.innerHTML='<div style="display:flex;align-items:flex-end;gap:2px;height:108px;overflow-x:auto;padding-bottom:4px;padding-top:18px">'+items.join('')+'</div>'
+      +'<div style="font-size:11px;color:var(--text-dim);margin-top:6px">&#128994; Kill &nbsp; &#128308; wipe'
       +(selectedPlayer?' &nbsp;&#183;&nbsp; &#128128; = <strong style="color:var(--gold)">'+escHtml(selectedPlayer)+'</strong> gestorben':'')
       +' &nbsp;&#183;&nbsp; Klick auf Balken = Detail</div>';
     chartEl.querySelectorAll('[data-pull-num]').forEach(el=>{
       el.onclick=()=>showPullDetail(+el.dataset.pullNum);
     });
   } else {
-    chartEl.innerHTML='<div class="empty"><div class="empty-icon">&#128200;</div><p>Keine Pulls geladen</p></div>';
+    chartEl.innerHTML='<div class="empty"><div class="empty-icon">&#128200;</div><p>No Pulls loaded</p></div>';
   }
 
   // Pull table
   const tableEl=document.getElementById('an-pulls-table');
   if(pulls.length){
-    tableEl.innerHTML=[...pulls].reverse().map(p=>'<div class="pull-row'+(selectedPullNum===p.num?' selected':'')+'" onclick="showPullDetail('+p.num+')"><span class="pull-num">#'+p.num+'</span><span class="pull-boss">'+escHtml(p.bossName)+'</span><span class="pull-duration">'+formatDuration(p.endTime-p.startTime)+'</span><span class="pull-deaths '+(p.deaths.length?'has-deaths':'no-deaths')+'">'+(p.deaths.length?'&#128128; '+p.deaths.length:'&#9989; 0')+'</span><span>'+(p.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">Wipe</span>')+'</span></div>').join('');
+    const _rev = [...pulls].reverse();
+    let _lastFile = null; const _rows = [];
+    for (const p of _rev) {
+      if (analysisFileMeta.length > 1 && p.sourceFile !== _lastFile) {
+        const _fd = p.startTime ? (d=>{const _d=new Date(d);return String(_d.getUTCDate()).padStart(2,'0')+'/'+String(_d.getUTCMonth()+1).padStart(2,'0')+' '+String(_d.getUTCHours()).padStart(2,'0')+':'+String(_d.getUTCMinutes()).padStart(2,'0');})(p.startTime) : '';
+        _rows.push('<div style="padding:3px 8px;font-size:10px;color:var(--text-dim);background:var(--bg-deep);border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">&#128196; '+escHtml(p.sourceFile)+(_fd?' <span style="opacity:0.6">'+_fd+'</span>':'')+'</div>');
+        _lastFile = p.sourceFile;
+      }
+      _rows.push('<div class="pull-row'+(selectedPullNum===p.num?' selected':'')+'" onclick="showPullDetail('+p.num+')"><span class="pull-num">#'+p.num+'</span><span class="pull-boss">'+escHtml(p.bossName)+'</span><span class="pull-duration">'+formatDuration(p.endTime-p.startTime)+'</span><span class="pull-deaths '+(p.deaths.length?'has-deaths':'no-deaths')+'">'+(p.deaths.length?'&#128128; '+p.deaths.length:'&#9989; 0')+'</span><span>'+(p.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">wipe</span>')+'</span></div>');
+    }
+    tableEl.innerHTML = _rows.join('');
   } else {
-    tableEl.innerHTML='<div class="empty"><p>Keine Pulls</p></div>';
+    tableEl.innerHTML='<div class="empty"><p>No Pulls</p></div>';
   }
 }
 
@@ -1966,10 +2031,13 @@ function showPullDetail(num) {
     document.getElementById('an-pull-detail').style.display='none';
     const ov=document.getElementById('an-raid-cd-overview');if(ov)ov.style.display='none';
     const ctCard=document.getElementById('an-cd-timeline-card');if(ctCard)ctCard.style.display='none';
+    _updateHeaderPullInfo(null);
     filterBoss(); return;
   }
   selectedPullNum=num; selectedDeathIdx=null;
   syncTabSelection(num, null);
+  // Update header info
+  _updateHeaderPullInfo(analysisPulls.find(p=>p.num===num));
   const pull=analysisPulls.find(p=>p.num===num);
   const detailEl=document.getElementById('an-pull-detail');
   if(!pull){detailEl.style.display='none';return;}
@@ -2005,7 +2073,9 @@ function showPullDetail(num) {
       const nextBtn = document.getElementById('an-nav-next');
       if(prevBtn){ prevBtn.style.display = prevP ? '' : 'none'; prevBtn.title = prevP ? '← Pull #'+prevP.num : ''; }
       if(nextBtn){ nextBtn.style.display = nextP ? '' : 'none'; nextBtn.title = nextP ? '→ Pull #'+nextP.num : ''; }
-      contentEl.innerHTML=buildRaidCDHTML(pull)||'<div class="empty"><p>Keine Raid-CDs</p></div>';
+      const _sbR=document.getElementById('cd-show-boss')?.checked!==false;
+      contentEl.innerHTML=buildRaidCDHTML(pull,_sbR)||'<div class="empty"><p>None Raid-CDs</p></div>';
+      enrichBossIcons(contentEl);
       setTimeout(()=>enrichSpellLinks(contentEl),100);
       overviewEl.scrollIntoView({behavior:'smooth',block:'nearest'});
     } else {
@@ -2029,12 +2099,12 @@ function buildPullDetailHTML(pull,visDeaths,ctxFn){
   return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
     +'<strong style="font-size:15px">'+escHtml(pull.bossName)+'</strong>'
     +'<span style="color:var(--text-dim);font-size:12px">Pull #'+pull.num+'</span>'
-    +(pull.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">Wipe</span>')
+    +(pull.success?'<span class="badge badge-kill">Kill</span>':'<span class="badge badge-wipe">wipe</span>')
     +'<span style="font-family:var(--font-mono);font-size:12px;color:var(--text-sec)">'+formatDuration(pull.endTime-pull.startTime)+'</span>'
     +(pull.sourceFile?'<span style="font-size:11px;color:var(--text-dim)">'+escHtml(pull.sourceFile)+'</span>':'')
     +'</div>'
     +'<div class="grid-2" style="gap:14px">'
-    +'<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">Tode ('+visDeaths.length+(pull.deaths.length>visDeaths.length?' von '+pull.deaths.length:'')+') <span style="font-size:10px;color:var(--text-dim)">&#183; Klick f&#252;r 5s Kontext</span></div>'
+    +'<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">Tode ('+visDeaths.length+(pull.deaths.length>visDeaths.length?' of '+pull.deaths.length:'')+') <span style="font-size:10px;color:var(--text-dim)">&#183; Klick f&#252;r 5s Kontext</span></div>'
     +'<div id="'+((ctxFn==='showDeathContext')?'detail-deaths-list':'live-detail-deaths')+'">'
     +(visDeaths.length
       ?visDeaths.map((d,i)=>{
@@ -2042,7 +2112,7 @@ function buildPullDetailHTML(pull,visDeaths,ctxFn){
         const nHtml=dc?'<span style="color:'+dc+';font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">'+escHtml(d.name)+'</span>':escHtml(d.name);
         return '<div class="death-entry clickable" onclick="'+ctxFn+'('+pull.num+','+i+')"><span>&#128128;</span><div class="death-name">'+nHtml+'</div><div class="death-time">'+formatOffset(d.offsetMs)+'</div><div class="death-cause">'+spellLink(d.cause,null,d.causeId)+(d.causeBy?' <span style="color:var(--text-dim);font-size:11px">('+escHtml(d.causeBy)+')</span>':'')+'</div></div>';
       }).join('')
-      :'<div style="color:var(--text-dim);font-size:13px;padding:8px">Keine Tode &#128737;</div>')
+      :'<div style="color:var(--text-dim);font-size:13px;padding:8px">None Tode &#128737;</div>')
     +'</div></div>'
     +'<div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">Pull-Timeline</div>'
     +'<div class="timeline scroll-area" style="max-height:200px">'+pull.events.map(e=>'<div class="timeline-event '+e.type+'"><div class="timeline-time">'+formatOffset(e.offsetMs)+'</div><div class="timeline-text">'+escHtml(e.text)+'</div>'+(e.detail?'<div class="timeline-detail">'+escHtml(e.detail)+'</div>':'')+'</div>').join('')+'</div></div>'
@@ -2053,7 +2123,7 @@ function buildPullDetailHTML(pull,visDeaths,ctxFn){
 // ── RAID CD TIMELINE ─────────────────────────────────────────────
 const CD_CAT_ORDER = ['major','minor','consumable'];
 
-function buildRaidCDHTML(pull) {
+function buildRaidCDHTML(pull, showBoss=true) {
   if (!pull.raidCDs || pull.raidCDs.length === 0) return '';
   const raidSet = getRaidCDSet();
   const rawCDs = pull.raidCDs.filter(cd => raidSet.has(cd.spell));
@@ -2103,7 +2173,7 @@ function buildRaidCDHTML(pull) {
   if (pull.deaths) {
     for (const d of pull.deaths) {
       const x = tx(d.offsetMs).toFixed(1);
-      svg += '<line x1="'+x+'" y1="'+PAD_T+'" x2="'+x+'" y2="'+(H-PAD_B)+'" stroke="rgba(192,57,43,0.25)" stroke-width="1" stroke-dasharray="3,2"/>';
+      svg += '<line x1="'+x+'" y1="'+PAD_T+'" x2="'+x+'" y2="'+(H-PAD_B)+'" stroke="rgba(192,57,43,0.55)" stroke-width="2"><title>☠ '+escHtml(d.name||'?')+' @ '+formatDuration(d.offsetMs)+(d.cause?' — '+escHtml(d.cause):'')+'</title></line>';
       svg += '<text x="'+x+'" y="'+(PAD_T+10)+'" font-size="7" fill="rgba(192,57,43,0.5)" text-anchor="middle">&#9760;</text>';
     }
   }
@@ -2157,6 +2227,57 @@ function buildRaidCDHTML(pull) {
     });
   });
 
+  // Boss ability casts — full-height semi-transparent dashed lines (like deaths)
+  if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
+    const _seenR=new Set(), _seenRI=new Set(), _rItems=[];
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenR.has(_k))return; _seenR.add(_k);
+      const _x=tx(c.offsetMs).toFixed(1);
+      svg+='<line x1="'+_x+'" y1="'+PAD_T+'" x2="'+_x+'" y2="'+(H-PAD_B)+'" stroke="rgba(180,180,180,0.35)" stroke-width="1.5" stroke-dasharray="4,2"><title>'+escHtml(c.bossName||'')+': '+escHtml(c.spell)+' @ '+formatDuration(c.offsetMs)+'</title></line>';
+    });
+  }
+  // Boss ability lines + icon strip
+  let _raidBossIconsHtml = '';
+  if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
+    const _seenRL=new Set(), _seenRLi=new Set(), _rIt=[];
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenRL.has(_k))return; _seenRL.add(_k);
+      const _ki=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenRLi.has(_ki))return; _seenRLi.add(_ki);
+      _rIt.push(c);
+    });
+    if (_rIt.length) {
+      // Add icon row to SVG: extend viewBox by 34px at top, shift content down
+      const ICO = 28;
+      const ICO_ROW = 32;
+      // Build icon elements (SVG image + wowhead rect overlay)
+      // icons built inline below
+      // Add icons to SVG: place them above PAD_T using negative y (SVG allows this)
+      // Extend viewBox to include icon row at top
+      svg = svg.replace('viewBox="0 0 '+W+' '+H+'"', 'viewBox="0 -'+ICO_ROW+' '+W+' '+(H+ICO_ROW)+'"');
+      // Icons sit at y = -ICO_ROW+2 (above the track area)
+      _rIt.forEach(ic=>{
+        const _nId=ic.spellId&&/^\d+$/.test(String(ic.spellId))?String(ic.spellId):'';
+        const _ca=spellCache['boss_id_'+_nId]||spellCache[ic.spell];
+        const _src=_ca&&_ca.icon?'https://wow.zamimg.com/images/wow/icons/large/'+_ca.icon+'.jpg':'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
+        const _xi=(tx(ic.offsetMs)-ICO/2).toFixed(1);
+        const _yi = (-ICO_ROW+2).toFixed(0);
+        svg +=
+          '<image class="boss-ability-icon" data-spellname="'+escHtml(ic.spell)+'" data-spellid="'+escHtml(ic.spellId||'')+'"'
+          +' href="'+_src+'" x="'+_xi+'" y="'+_yi+'" width="'+ICO+'" height="'+ICO+'">'
+          +'<title>'+escHtml(ic.spell)+' @ '+formatDuration(ic.offsetMs)+'</title>'
+          +'</image>'
+          +'<rect x="'+_xi+'" y="'+_yi+'" width="'+ICO+'" height="'+ICO+'" rx="4" ry="4"'
+          +' fill="none" stroke="rgba(180,180,180,0.5)" stroke-width="1"/>'
+          +(_nId
+            ? '<foreignObject x="'+_xi+'" y="'+_yi+'" width="'+ICO+'" height="'+ICO+'">'
+              +'<a xmlns="http://www.w3.org/1999/xhtml" href="https://www.wowhead.com/spell='+_nId+'"'
+              +' data-wowhead="spell='+_nId+'" style="display:block;width:100%;height:100%;opacity:0;cursor:pointer"></a>'
+              +'</foreignObject>'
+            : '')
+      });
+      _raidBossIconsHtml = ''; // icons embedded in SVG
+    }
+  }
   svg += '</svg>';
 
   // Invisible HTML anchors for Wowhead tooltips — positioned over the SVG label area
@@ -2177,14 +2298,19 @@ function buildRaidCDHTML(pull) {
     + '<span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-left:8px">'
     + deduped.length + ' Einsätze &nbsp;&#183;&nbsp; Hover für Details</span>'
     + '</div>'
-    + '<div style="position:relative;overflow:hidden">'+linkDiv+svg+'</div>'
+    + '<div style="overflow-x:auto">'
+    + '<div style="position:relative;overflow:visible">'
+    + (_raidBossIconsHtml||'')
+    + linkDiv+svg
+    + '</div>'
+    + '</div>'
     + '</div>';
 }
 
 // ── DEATH CONTEXT RENDERER ──────────────────────────────────────
 function renderDeathContext(death,pull,containerEl){
   if(!death||!death.context||death.context.length===0){
-    containerEl.innerHTML='<div style="margin-top:14px;padding:10px;background:var(--bg-deep);border-radius:8px;font-size:13px;color:var(--text-dim)">Keine Context-Events vorhanden.</div>';
+    containerEl.innerHTML='<div style="margin-top:14px;padding:10px;background:var(--bg-deep);border-radius:8px;font-size:13px;color:var(--text-dim)">None Context-Events vorhanden.</div>';
     return;
   }
   const deathTs=pull.startTime+death.offsetMs;
@@ -2215,7 +2341,7 @@ function renderDeathContext(death,pull,containerEl){
   const ptStr=points.join(' ');
   svgLines+='<polygon points="'+ptStr+' '+tx(startTs).toFixed(1)+','+ty(0).toFixed(1)+'" fill="rgba(192,57,43,0.12)" stroke="none"/>';
   svgLines+='<polyline points="'+ptStr+'" fill="none" stroke="#c0392b" stroke-width="1.5" stroke-linejoin="round"/>';
-  svgLines+='<line x1="'+tx(deathTs).toFixed(1)+'" y1="'+PAD.t+'" x2="'+tx(deathTs).toFixed(1)+'" y2="'+(PAD.t+gH)+'" stroke="#c0392b" stroke-width="1" stroke-dasharray="3,2"/>';
+  svgLines+='<line x1="'+tx(deathTs).toFixed(1)+'" y1="'+PAD.t+'" x2="'+tx(deathTs).toFixed(1)+'" y2="'+(PAD.t+gH)+'" stroke="#c0392b" stroke-width="2"/>';
   for(const cd of cdEvents){
     const x=tx(cd.ts).toFixed(1),col=CD_COLORS[cd.cdCat]||'#888';
     svgCDs+='<line x1="'+x+'" y1="'+PAD.t+'" x2="'+x+'" y2="'+(PAD.t+gH)+'" stroke="'+col+'" stroke-width="1.5" opacity="0.8"/>';
@@ -2362,6 +2488,8 @@ function filterByPlayer(name){
   selectedPlayer=(name&&name!==selectedPlayer)?name:null;
   if (selectedPlayer) syncTabSelection(null, selectedPlayer);
   filterBoss();
+  // Re-render CD timeline with player filter
+  if (selectedPullNum) renderCDTimeline();
 }
 function clearPlayerFilter(){selectedPlayer=null;filterBoss();}
 function filterByCause(cause){
@@ -2377,7 +2505,7 @@ function renderSettings(){
     const items=userCooldowns.map((item,i)=>({item,i})).filter(({item:[,c]})=>c===cat);
     el.innerHTML=items.length
       ?items.map(({item:[name,cat],i})=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat '+cat+'">'+cat+'</span><span class="cd-item-remove" data-cd-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
-      :'<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+      :'<div style="font-size:12px;color:var(--text-dim);padding:4px">None</div>';
     el.querySelectorAll('.cd-item-remove[data-cd-idx]').forEach(btn=>{
       btn.onclick=()=>{ removeCooldownByIdx(+btn.dataset.cdIdx); };
     });
@@ -2387,7 +2515,7 @@ function renderSettings(){
   if (raidEl) {
     raidEl.innerHTML = userRaidCDs.length
       ? userRaidCDs.map((name,i)=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat major">Raid CD</span><span class="cd-item-remove" data-raid-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
-      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">None</div>';
     raidEl.querySelectorAll('.cd-item-remove[data-raid-idx]').forEach(btn=>{
       btn.onclick=()=>{ removeRaidCDByIdx(+btn.dataset.raidIdx); };
     });
@@ -2397,7 +2525,7 @@ function renderSettings(){
   if (offEl) {
     offEl.innerHTML = userOffCDs.length
       ? userOffCDs.map((name,i)=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat minor">Offensiv</span><span class="cd-item-remove" data-off-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
-      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">None</div>';
     offEl.querySelectorAll('[data-off-idx]').forEach(btn=>{ btn.onclick=()=>removeOffCDByIdx(+btn.dataset.offIdx); });
   }
   // DPS pots
@@ -2405,7 +2533,7 @@ function renderSettings(){
   if (potEl) {
     potEl.innerHTML = userDpsPots.length
       ? userDpsPots.map((name,i)=>'<div class="cd-item"><div class="cd-item-name">'+escHtml(name)+'</div><span class="cd-item-cat consumable">Pot/Stone</span><span class="cd-item-remove" data-pot-idx="'+i+'" title="Entfernen">&#215;</span></div>').join('')
-      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">Keine</div>';
+      : '<div style="font-size:12px;color:var(--text-dim);padding:4px">None</div>';
     potEl.querySelectorAll('[data-pot-idx]').forEach(btn=>{ btn.onclick=()=>removeDpsPotByIdx(+btn.dataset.potIdx); });
   }
 }
@@ -2415,10 +2543,12 @@ function addRaidCD() {
   if (userRaidCDs.includes(name)) { alert('Bereits vorhanden'); return; }
   userRaidCDs.push(name);
   saveRaidCDs(); renderSettings();
+  _liveUpdateCDCharts();
 }
 function removeRaidCD(name) {
   userRaidCDs = userRaidCDs.filter(n => n !== name);
   saveRaidCDs(); renderSettings();
+  _liveUpdateCDCharts();
 }
 function addOffCD(){const n=document.getElementById('new-off-cd-name').value.trim();if(!n)return;if(!userOffCDs.includes(n))userOffCDs.push(n);saveOffCDs();renderSettings();}
 function removeOffCDByIdx(i){userOffCDs.splice(i,1);saveOffCDs();renderSettings();}
@@ -2469,11 +2599,13 @@ function importSettings(evt){
 function removeRaidCDByIdx(idx) {
   userRaidCDs.splice(idx, 1);
   saveRaidCDs(); renderSettings();
+  _liveUpdateCDCharts();
 }
 function resetRaidCDs() {
   if (!confirm('Raid CDs auf Defaults zurücksetzen?')) return;
   userRaidCDs = [...DEFAULT_RAID_CD_LIST];
   saveRaidCDs(); renderSettings();
+  _liveUpdateCDCharts();
 }
 function addCooldown(){
   const name=document.getElementById('new-cd-name').value.trim();
@@ -2494,7 +2626,7 @@ function removeCooldownByIdx(idx){
   saveCooldowns(); renderSettings();
 }
 function resetCooldowns(){
-  if(!confirm('Alle Anpassungen verwerfen und Defaults wiederherstellen?')) return;
+  if(!confirm('Alle Anpassungen verwerfen und Restore Defaults?')) return;
   userCooldowns=[...DEFAULT_CD_LIST];
   saveCooldowns(); renderSettings();
 }
@@ -2620,233 +2752,20 @@ function detectPlayerSpec(pull, playerName) {
   return bestScore >= _minScore ? bestSpec : null;
 }
 
-function autoSelectAPL(pull, playerName) {
-  const spec = detectPlayerSpec(pull, playerName);
-  if (!spec) return null;
-  // Find matching display name in APL_SPECS
-  const entry = Object.entries(APL_SPECS).find(([,v]) => v === spec);
-  return entry ? entry[0] : null;
-}
-
-const APL_SPECS = {
-  'Death Knight · Blood':     'deathknight_blood',
-  'Death Knight · Frost':     'deathknight_frost',
-  'Death Knight · Unholy':    'deathknight_unholy',
-  'Demon Hunter · Havoc':     'demonhunter_havoc',
-  
-  'Druid · Balance':          'druid_balance',
-  'Druid · Feral':            'druid_feral',
-  'Druid · Guardian':         'druid_guardian',
-  'Druid · Restoration':      'druid_restoration',
-  'Evoker · Augmentation':    'evoker_augmentation',
-  'Evoker · Devastation':     'evoker_devastation',
-  'Evoker · Preservation':    'evoker_preservation',
-  'Hunter · Beast Mastery':   'hunter_beast_mastery',
-  'Hunter · Marksmanship':    'hunter_marksmanship',
-  'Hunter · Survival':        'hunter_survival',
-  'Mage · Arcane':            'mage_arcane',
-  'Mage · Fire':              'mage_fire',
-  'Mage · Frost':             'mage_frost',
-  'Monk · Brewmaster':        'monk_brewmaster',
-  'Monk · Windwalker':        'monk_windwalker',
-  'Paladin · Protection':     'paladin_protection',
-  'Paladin · Retribution':    'paladin_retribution',
-  'Priest · Shadow':          'priest_shadow',
-  'Rogue · Assassination':    'rogue_assassination',
-  'Rogue · Outlaw':           'rogue_outlaw',
-  'Rogue · Subtlety':         'rogue_subtlety',
-  'Shaman · Enhancement':     'shaman_enhancement',
-  'Shaman · Elemental':       'shaman_elemental',
-  'Shaman · Restoration':     'shaman_restoration',
-  'Warrior · Arms':           'warrior_arms',
-  'Warrior · Fury':           'warrior_fury',
-  'Warrior · Protection':     'warrior_protection',
-  'Warlock · Affliction':     'warlock_affliction',
-  'Warlock · Demonology':     'warlock_demonology',
-  'Warlock · Destruction':    'warlock_destruction',
-  'Demon Hunter · Vengeance': 'demonhunter_vengeance',
-  'Demon Hunter · Devourer':  'demonhunter_devourer',
-};
 
 // Use thewarwithin — the active branch
-const APL_GITHUB_BASE = 'https://raw.githubusercontent.com/simulationcraft/simc/refs/heads/midnight/ActionPriorityLists/default/';
 
-let aplRawText = null;
-let aplParsed = null;
-let aplSelectedPlayer = null;
-let aplSelectedPull = null;
 
 // ── APL Parser ────────────────────────────────────────────────────
-function parseAPL(text) {
-  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
-  const lists = {}; // listName → [{spell, displayName, ifCond, raw, params}]
-
-  for (const line of lines) {
-    const m = line.match(/^actions(?:\.(\w+))?\+?=\/?(.*)/);
-    if (!m) continue;
-    const listName = m[1] || '__main__';
-    const rest = m[2].trim();
-    if (!rest) continue;
-
-    // Split spell name from params (first comma not inside parens)
-    let depth=0, commaAt=-1;
-    for(let i=0;i<rest.length;i++){
-      if(rest[i]==='(')depth++;
-      else if(rest[i]==')')depth--;
-      else if(rest[i]===','&&depth===0){commaAt=i;break;}
-    }
-    const spellSimc = commaAt===-1?rest:rest.slice(0,commaAt);
-    const paramsStr = commaAt===-1?'':rest.slice(commaAt+1);
-
-    // Parse params (key=value pairs)
-    const params = {};
-    let pd=0, pkey='', pval='', inkey=true;
-    for(let i=0;i<=paramsStr.length;i++){
-      const c=i<paramsStr.length?paramsStr[i]:',';
-      if(c==='(')pd++;
-      else if(c===')')pd--;
-      else if(c==='='&&inkey&&pd===0){inkey=false;continue;}
-      else if(c===','&&pd===0){
-        if(pkey) params[pkey.trim()]=pval.trim();
-        pkey='';pval='';inkey=true;continue;
-      }
-      if(inkey)pkey+=c; else pval+=c;
-    }
-
-    if (!lists[listName]) lists[listName] = [];
-    lists[listName].push({
-      spell: spellSimc.trim(),
-      displayName: simcToDisplayName(spellSimc.trim()),
-      ifCond: params.if || null,
-      name: params.name || null,  // for call_action_list/run_action_list
-      raw: line,
-      params,
-    });
-  }
-
-  return { lists };
-}
 
 // ── Buff Tracker ─────────────────────────────────────────────────
 // Rebuilds active buffs at each cast timestamp from pull.buffEvents
-function buildBuffStateAtTime(pull, playerName, targetTs) {
-  const buffs = {}; // buffKey → {name, stack, appliedAt, expireAt}
-  if (!pull.buffEvents) return buffs;
-
-  const playerNorm = normalizeForMatch(playerName.split('-')[0]);
-
-  for (const ev of pull.buffEvents) {
-    if (ev.ts > targetTs) break;
-    const destNorm = normalizeForMatch((ev.destName||'').split('-')[0]);
-    if (destNorm !== playerNorm) continue;
-
-    const key = normalizeForMatch(ev.spell);
-    if (ev.type === 'applied') {
-      buffs[key] = { name: ev.spell, stack: ev.stack||1, appliedAt: ev.ts };
-    } else if (ev.type === 'stacked' && buffs[key]) {
-      buffs[key].stack = ev.stack||((buffs[key].stack||1)+1);
-    } else if (ev.type === 'removed') {
-      delete buffs[key];
-    }
-  }
-  return buffs;
-}
 
 // ── APL Rule Evaluator ────────────────────────────────────────────
 // Given a cast and the buffs active at that time, check if APL conditions
 // for earlier (higher-priority) actions would have been met.
 // Returns a list of "should have cast X instead" suggestions.
 
-function evaluateAPLAtCast(cast, buffs, runicPower, apl, pullDurMs) {
-  if (!apl) return [];
-  const suggestions = [];
-  const castNorm = normalizeForMatch(cast.spell);
-  const offsetSec = cast.offsetMs / 1000;
-  const fightRemains = Math.max(0, pullDurMs/1000 - offsetSec);
-
-  // Find the action list entry for this cast
-  let castListName = null, castIdx = -1;
-  for (const [lname, actions] of Object.entries(apl.lists)) {
-    const idx = actions.findIndex(a => normalizeForMatch(a.displayName||'') === castNorm
-      || normalizeForMatch(a.spell) === castNorm);
-    if (idx !== -1 && (castIdx === -1 || idx < castIdx)) {
-      castListName = lname; castIdx = idx;
-    }
-  }
-
-  if (castListName === null) return []; // spell not in APL, skip
-
-  // Check if any higher-priority action in same list could have been cast
-  const list = apl.lists[castListName] || [];
-  for (let i = 0; i < castIdx; i++) {
-    const action = list[i];
-    if (!action.displayName) continue; // skip meta-actions
-    if (['call_action_list','run_action_list','auto_attack','use_items','use_item','potion','variable','snapshot_stats'].includes(action.spell)) continue;
-
-    const condResult = tryEvalCondition(action.ifCond, buffs, runicPower, offsetSec, fightRemains);
-    if (condResult === true) {
-      // Build human-readable reason with resolved values
-      let why = '';
-      if (!action.ifCond) {
-        why = 'Kein Cooldown/Bedingung — immer castbar';
-      } else {
-        // Resolve actual values from state for key resources
-        const rpVal = runicPower !== null ? runicPower : '?';
-        const rpDef = runicPower !== null ? (120 - runicPower) : '?';
-        const resolvedParts = [];
-
-        // Parse AND conditions and resolve each
-        const atoms = action.ifCond.split(/&(?!&)/);
-        for (const atom of atoms) {
-          const a = atom.trim();
-          let resolved = a;
-          // runic_power.deficit comparisons
-          let m;
-          if ((m = a.match(/runic_power\.deficit([<>]=?)(\d+)/))) {
-            resolved = 'RP-Deficit ' + m[1] + m[2] + ' (aktuell: ' + rpDef + ')';
-          } else if ((m = a.match(/runic_power([<>]=?)(\d+)/))) {
-            resolved = 'Runic Power ' + m[1] + m[2] + ' (aktuell: ' + rpVal + ')';
-          } else if ((m = a.match(/^!?buff\.(\w+)\.up$/))) {
-            const neg = a.startsWith('!');
-            const bname = m[1].replace(/_/g,' ');
-            const bkey = m[1].toLowerCase().replace(/_/g,'');
-            const active = !!buffs[bkey];
-            resolved = (neg?'KEIN ':'') + bname + (active?' [✓ aktiv]':' [✗ inaktiv]');
-          } else if ((m = a.match(/buff\.(\w+)\.stack([<>]=?)(\d+)/))) {
-            const bname = m[1].replace(/_/g,' ');
-            const bkey = m[1].toLowerCase().replace(/_/g,'');
-            const stacks = buffs[bkey]?.stack ?? 0;
-            resolved = bname + ' Stacks ' + m[2] + m[3] + ' (aktuell: ' + stacks + ')';
-          } else if ((m = a.match(/buff\.(\w+)\.remains([<>]=?)(\d+)/))) {
-            const bname = m[1].replace(/_/g,' ');
-            resolved = bname + ' läuft ab ' + m[2] + m[3] + 's';
-          } else if ((m = a.match(/!buff\.(\w+)\.up/))) {
-            const bname = m[1].replace(/_/g,' ');
-            const bkey = m[1].toLowerCase().replace(/_/g,'');
-            const active = !!buffs[bkey];
-            resolved = bname + ' nicht aktiv' + (active?' [✗ war aber aktiv]':' [✓]');
-          } else if (a.includes('fight_remains')) {
-            resolved = 'Fight-Rest > ' + a.match(/\d+/)?.[0] + 's';
-          } else if (a.includes('time')) {
-            resolved = 'Zeit > ' + a.match(/\d+/)?.[0] + 's';
-          } else {
-            resolved = a.replace(/_/g,' ').replace(/\./g,' ').replace(/&/g,' UND ');
-          }
-          resolvedParts.push(resolved);
-        }
-        why = resolvedParts.join(' UND ');
-      }
-      suggestions.push({
-        spell: action.displayName,
-        simcSpell: action.spell,
-        priority: i,
-        condition: action.ifCond,
-        reason: why,
-      });
-    }
-  }
-  return suggestions;
-}
 
 function tryEvalCondition(cond, buffs, runicPower, timeSec, fightRemains) {
   if (!cond) return true; // no condition = always castable
@@ -2895,273 +2814,12 @@ function tryEvalCondition(cond, buffs, runicPower, timeSec, fightRemains) {
 }
 
 // ── UI ────────────────────────────────────────────────────────────
-function renderAPLTab() {
-  // Collect players from loaded pulls
-  const players = new Set();
-  for (const p of analysisPulls) {
-    if (p.playerCasts) p.playerCasts.forEach(c => players.add(c.playerName.split('-')[0]));
-    if (p.deaths) p.deaths.forEach(d => players.add(d.name.split('-')[0]));
-  }
 
-  const playerSel = document.getElementById('apl-player-select');
-  if (playerSel) {
-    playerSel.innerHTML = '<option value="">— Spieler wählen —</option>'
-      + [...players].sort().map(p=>`<option value="${escHtml(p)}"${aplSelectedPlayer===p?' selected':''}>${escHtml(p)}</option>`).join('');
-  }
 
-  const pullSel = document.getElementById('apl-pull-select');
-  if (pullSel) {
-    pullSel.innerHTML = '<option value="">— Pull wählen —</option>'
-      + [...analysisPulls].reverse().map(p=>`<option value="${p.num}"${aplSelectedPull===p.num?' selected':''}>#${p.num} ${escHtml(p.bossName)} (${formatDuration(p.endTime-p.startTime)}) ${p.success?'[Kill]':'[Wipe]'}</option>`).join('');
-  }
 
-  const specSel = document.getElementById('apl-spec-select');
-  if (specSel && specSel.options.length <= 1) {
-    specSel.innerHTML = '<option value="">— Spec wählen —</option>'
-      + Object.keys(APL_SPECS).map(s=>`<option value="${s}">${s}</option>`).join('');
-    specSel.onchange = () => { if(specSel.value) aplLoadFromGitHub(); };
-  }
 
-  renderAPLResult();
-}
 
-function renderAPLResult() {
-  const el = document.getElementById('apl-result');
-  if (!el) return;
 
-  if (!aplRawText) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>Lade eine APL von GitHub oder lade eine .simc Datei hoch.</p></div>';
-    return;
-  }
-  if (!aplSelectedPlayer || aplSelectedPull === null) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><p>Wähle Spieler und Pull, dann klick "Analyse starten".</p></div>';
-    return;
-  }
-
-  const pull = analysisPulls.find(p=>p.num===aplSelectedPull);
-  if (!pull) { el.innerHTML = '<div class="empty"><p>Pull nicht gefunden.</p></div>'; return; }
-
-  const playerNorm = normalizeForMatch(aplSelectedPlayer);
-  const pullDurMs = pull.endTime - pull.startTime;
-
-  // Player casts for this pull
-  const casts = (pull.playerCasts||[])
-    .filter(c => normalizeForMatch(c.playerName.split('-')[0]) === playerNorm)
-    .sort((a,b) => a.offsetMs - b.offsetMs);
-
-  if (!casts.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>Keine Casts für <strong>${escHtml(aplSelectedPlayer)}</strong> in Pull #${pull.num} gefunden.<br><span style="font-size:11px;color:var(--text-dim)">Hinweis: Casts werden aus SPELL_CAST_SUCCESS Events gelesen. Stelle sicher dass Advanced Logging aktiviert ist.</span></p></div>`;
-    return;
-  }
-
-  // Build APL spell set for quick lookup
-  const aplSpellNorms = new Set();
-  const aplActionsBefore = {}; // normName → list of higher-prio actions
-  if (aplParsed) {
-    for (const [lname, actions] of Object.entries(aplParsed.lists)) {
-      actions.forEach((a,i) => {
-        if (!a.displayName) return;
-        const norm = normalizeForMatch(a.displayName);
-        aplSpellNorms.add(norm);
-        aplSpellNorms.add(normalizeForMatch(a.spell));
-        // Store what comes before it in priority
-        if (!aplActionsBefore[norm]) aplActionsBefore[norm] = [];
-        aplActionsBefore[norm] = actions.slice(0,i).filter(x=>x.displayName&&!['call_action_list','run_action_list','auto_attack','use_items','use_item','potion','variable'].includes(x.spell));
-      });
-    }
-  }
-
-  // Analyse casts
-  const analysedCasts = casts.map(cast => {
-    const castNorm = normalizeForMatch(cast.spell);
-    const inAPL = aplSpellNorms.has(castNorm);
-    const buffs = buildBuffStateAtTime(pull, aplSelectedPlayer, pull.startTime + cast.offsetMs);
-    const runicPower = cast.runicPower;
-    const suggestions = inAPL && aplParsed
-      ? evaluateAPLAtCast(cast, buffs, runicPower, aplParsed, pullDurMs)
-      : [];
-    return { cast, inAPL, buffs, suggestions };
-  });
-
-  const withViolations = analysedCasts.filter(c=>c.suggestions.length>0);
-  const inAPLCount = analysedCasts.filter(c=>c.inAPL).length;
-  const violationCount = withViolations.length;
-
-  let html = `
-  <div class="grid-4 section" style="gap:14px;margin-bottom:20px">
-    <div class="stat-box"><div class="stat-label">Casts gesamt</div><div class="stat-value gold">${casts.length}</div><div class="stat-sub">${escHtml(aplSelectedPlayer)}</div></div>
-    <div class="stat-box"><div class="stat-label">In APL erkannt</div><div class="stat-value green">${inAPLCount}</div><div class="stat-sub">${Math.round(inAPLCount/casts.length*100)}% Abdeckung</div></div>
-    <div class="stat-box"><div class="stat-label">Mögliche Violations</div><div class="stat-value ${violationCount>0?'red':'green'}">${violationCount}</div><div class="stat-sub">APL-Abweichungen</div></div>
-    <div class="stat-box"><div class="stat-label">APL Zeilen</div><div class="stat-value">${Object.values(aplParsed?.lists||{}).flat().length}</div><div class="stat-sub">Aktionen total</div></div>
-  </div>`;
-
-  // Violations panel
-  if (violationCount > 0) {
-    html += `<div class="card section" style="border-color:rgba(192,57,43,0.4)">
-      <div class="card-title" style="color:var(--red)">⚠️ APL-Abweichungen (${violationCount})</div>
-      <div class="scroll-area" style="max-height:300px">`;
-    for (const {cast, suggestions} of withViolations) {
-      html += `<div style="padding:8px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
-        <div style="flex-shrink:0;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);padding-top:2px">${formatDuration(cast.offsetMs)}</div>
-        <div>
-          <div style="font-size:13px;margin-bottom:4px">Gecastet: ${spellLink(cast.spell,'',cast.spellId)}</div>
-          ${suggestions.map(s=>`<div style="font-size:11px;color:rgba(192,57,43,0.8);margin-top:4px;padding:4px 6px;background:rgba(192,57,43,0.06);border-radius:4px;border-left:2px solid var(--red)">
-            <span style="opacity:0.6">Prio ${s.priority+1}:</span> ${spellLink(s.spell,'')}
-            <div style="color:var(--text-sec);font-size:10px;margin-top:2px">${escHtml(s.reason)}</div>
-          </div>`).join('')}
-        </div>
-      </div>`;
-    }
-    html += `</div></div>`;
-  } else if (aplParsed) {
-    html += `<div class="card section" style="border-color:rgba(39,174,96,0.3)"><div style="padding:8px;color:var(--green);font-size:13px">✅ Keine erkennbaren APL-Abweichungen in diesem Pull.</div></div>`;
-  }
-
-  // Full cast timeline
-  html += `<div class="card section">
-    <div class="card-title">⚔️ Cast-Timeline — ${escHtml(aplSelectedPlayer)}</div>
-    <div style="font-family:var(--font-mono);font-size:11px;max-height:400px;overflow-y:auto">
-      <div style="display:grid;grid-template-columns:60px 1fr 60px;gap:8px;padding:4px 6px;color:var(--text-dim);font-size:10px;border-bottom:1px solid var(--border);margin-bottom:4px">
-        <span>Zeit</span><span>Spell</span><span style="text-align:right">APL</span>
-      </div>
-      ${analysedCasts.map(({cast,inAPL,suggestions})=>{
-        const hasViol = suggestions.length > 0;
-        const bg = hasViol ? 'rgba(192,57,43,0.08)' : '';
-        return `<div style="display:grid;grid-template-columns:60px 1fr 60px;gap:8px;padding:4px 6px;border-radius:4px;background:${bg}">
-          <span style="color:var(--text-dim)">${formatDuration(cast.offsetMs)}</span>
-          <span>${spellLink(cast.spell,'',cast.spellId)}</span>
-          <span style="text-align:right;color:${inAPL?(hasViol?'var(--red)':'var(--green)'):'var(--text-dim)'}">${inAPL?(hasViol?'⚠️':'✓'):'—'}</span>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-
-  // APL viewer with usage highlights
-  if (aplParsed) {
-    const usedNorms = new Set(casts.map(c=>normalizeForMatch(c.spell)));
-    html += `<div class="card section">
-      <div class="card-title">📋 APL — ${aplParsed.specName||'Geladen'}</div>
-      <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">🟡 = in diesem Pull gecastet &nbsp; 🔵 = in APL, nicht gecastet</div>
-      <div style="font-family:var(--font-mono);font-size:11px;max-height:400px;overflow-y:auto;background:var(--bg-deep);border-radius:6px;padding:10px;line-height:1.9">
-        ${Object.entries(aplParsed.lists).map(([lname,actions])=>{
-          const dname = lname==='__main__'?'actions':'actions.'+lname;
-          return `<div style="margin-bottom:14px">
-            <div style="color:var(--gold);font-weight:600;margin-bottom:4px">${escHtml(dname)}</div>
-            ${actions.map((a,i)=>{
-              const dn = a.displayName || a.spell;
-              const dnNorm = normalizeForMatch(dn);
-              const snorm = normalizeForMatch(a.spell);
-              const used = usedNorms.has(dnNorm)||usedNorms.has(snorm);
-              const isMeta = ['call_action_list','run_action_list','auto_attack','use_items','use_item','potion','variable','snapshot_stats'].includes(a.spell);
-              const col = isMeta?'var(--text-dim)':used?'var(--gold)':'#5a7a9a';
-              const dot = isMeta?'':used?'🟡 ':'🔵 ';
-              return `<div style="padding:1px 4px;border-radius:3px">
-                <span style="color:var(--text-dim);margin-right:6px;font-size:10px">${String(i+1).padStart(2,' ')}.</span>
-                <span style="color:${col}">${dot}${escHtml(dn)}</span>
-                ${a.ifCond?`<span style="color:var(--text-dim);font-size:10px">,if=</span><span style="color:#4a6a7a;font-size:10px">${escHtml(a.ifCond.substring(0,60)+(a.ifCond.length>60?'…':''))}</span>`:''}
-              </div>`;
-            }).join('')}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`;
-  }
-
-  el.innerHTML = html;
-  setTimeout(() => enrichSpellLinks(el), 100);
-}
-
-async function aplLoadFromGitHub(specOverride) {
-  const spec = specOverride || document.getElementById('apl-spec-select').value;
-  if (!spec) return;
-  const filename = APL_SPECS[spec];
-  if (!filename) return;
-  const statusEl = document.getElementById('apl-load-status');
-  const previewEl = document.getElementById('apl-raw-preview');
-  const url = APL_GITHUB_BASE + filename + '.simc';
-  statusEl.innerHTML = 'Lade… <a href="' + url + '" target="_blank" style="color:var(--text-dim);font-size:10px">' + url + '</a>';
-  statusEl.style.color = 'var(--text-sec)';
-  try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('HTTP ' + r.status + ' — ' + url);
-    aplRawText = await r.text();
-    aplParsed = parseAPL(aplRawText);
-    aplParsed.specName = spec;
-    Object.keys(_aplResultCache).forEach(k=>delete _aplResultCache[k]);
-    setTimeout(precomputeAPLCache, 100); // precompute for all players
-    const lineCount = Object.values(aplParsed.lists).flat().length;
-    statusEl.innerHTML = '✓ ' + escHtml(spec) + ' — ' + lineCount + ' Aktionen &nbsp;<a href="' + url + '" target="_blank" style="color:var(--text-dim);font-size:10px" title="APL auf GitHub">[GitHub]</a>';
-    statusEl.style.color = 'var(--green)';
-    previewEl.style.display = 'block';
-    previewEl.textContent = aplRawText.split('\n').filter(l=>!l.startsWith('#')).slice(0,20).join('\n')+'…';
-    renderAPLResult();
-  } catch(e) {
-    statusEl.innerHTML = '✗ ' + escHtml(e.message) + ' &nbsp;<a href="' + url + '" target="_blank" style="color:var(--red);font-size:10px">[Link prüfen]</a>';
-    statusEl.style.color = 'var(--red)';
-  }
-}
-
-function aplLoadFromFile(evt) {
-  const file = evt.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    aplRawText = e.target.result;
-    aplParsed = parseAPL(aplRawText);
-    aplParsed.specName = file.name.replace('.simc','');
-    const statusEl = document.getElementById('apl-load-status');
-    const previewEl = document.getElementById('apl-raw-preview');
-    statusEl.textContent = `✓ ${file.name} — ${Object.values(aplParsed.lists).flat().length} APL-Aktionen`;
-    statusEl.style.color = 'var(--green)';
-    previewEl.style.display = 'block';
-    previewEl.textContent = aplRawText.split('\n').filter(l=>!l.startsWith('#')).slice(0,20).join('\n')+'…';
-    renderAPLResult();
-  };
-  reader.readAsText(file);
-  evt.target.value = '';
-}
-
-async function aplPlayerChanged() {
-  aplSelectedPlayer = document.getElementById('apl-player-select').value || null;
-  if (aplSelectedPlayer) await tryAutoLoadAndRender();
-}
-async function aplPullChanged() {
-  const v = document.getElementById('apl-pull-select').value;
-  aplSelectedPull = v ? parseInt(v) : null;
-  if (aplSelectedPlayer) await tryAutoLoadAndRender();
-}
-
-async function tryAutoLoadAPL() {
-  if (!aplSelectedPlayer) return;
-  const pull = aplSelectedPull
-    ? analysisPulls.find(p=>p.num===aplSelectedPull)
-    : analysisPulls.find(p=>p.playerCasts&&p.playerCasts.some(c=>(c.playerName||'').split('-')[0]===aplSelectedPlayer.split('-')[0]));
-  if (!pull) return;
-  const specDisplay = autoSelectAPL(pull, aplSelectedPlayer);
-  if (!specDisplay) return;
-  const specSel = document.getElementById('apl-spec-select');
-  if (specSel) specSel.value = specDisplay;
-  if (!aplRawText || aplParsed?.specName !== specDisplay) {
-    await aplLoadFromGitHub(specDisplay);
-  }
-}
-
-async function tryAutoLoadAndRender() {
-  if (!aplSelectedPlayer) { renderAPLResult(); return; }
-  const pull = aplSelectedPull
-    ? analysisPulls.find(p=>p.num===aplSelectedPull)
-    : analysisPulls.find(p=>p.playerCasts&&p.playerCasts.some(c=>(c.playerName||'').split('-')[0]===aplSelectedPlayer.split('-')[0]));
-  if (!pull) { renderAPLResult(); return; }
-  const detectedSpec = autoSelectAPL(pull, aplSelectedPlayer);
-  const currentSpec = aplParsed?.specName;
-  const specSel = document.getElementById('apl-spec-select');
-  if (detectedSpec && detectedSpec !== currentSpec) {
-    if (specSel) specSel.value = detectedSpec;
-    await aplLoadFromGitHub(detectedSpec); // this calls renderAPLResult at end
-  } else {
-    if (detectedSpec && specSel) specSel.value = detectedSpec;
-    renderAPLResult();
-  }
-}
 
 // ── PERFORMANCE TAB ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════
@@ -3179,51 +2837,7 @@ let perfSelectedPull = null;
 let perfSelectedPlayer = null;
 let perfSortCol = 'dps';
 let perfSortAsc = false;
-let _aplResultCache = {}; // key: pullNum+playerName → {inAPL, violations, total}
 
-function getAPLResultCached(pull, playerName, casts) {
-  if (!aplParsed) return null;
-  const key = (pull.num||0) + '|' + playerName + '|' + (aplParsed.specName||'');
-  if (_aplResultCache[key]) return _aplResultCache[key];
-
-  const pullDurMs = pull.endTime - pull.startTime;
-  const aplSpellNorms = new Set();
-  for (const [,actions] of Object.entries(aplParsed.lists))
-    actions.forEach(a=>{ if(a.displayName){aplSpellNorms.add(normalizeForMatch(a.displayName));aplSpellNorms.add(normalizeForMatch(a.spell));} });
-
-  // Build buff timeline once (sorted by ts)
-  const buffEvents = (pull.buffEvents||[]).sort((a,b)=>a.ts-b.ts);
-  const pnormB = normalizeForMatch(playerName.split('-')[0]);
-  const playerBuffEvents = buffEvents.filter(e=>normalizeForMatch((e.destName||'').split('-')[0])===pnormB);
-
-  let inAPL = 0;
-  const violations = [];
-
-  // Build buff state incrementally (O(n) instead of O(n²))
-  const buffState = {};
-  let buffIdx = 0;
-
-  for (const c of casts) {
-    const targetTs = pull.startTime + c.offsetMs;
-
-    // Advance buff state to targetTs
-    while (buffIdx < playerBuffEvents.length && playerBuffEvents[buffIdx].ts <= targetTs) {
-      const ev = playerBuffEvents[buffIdx++];
-      const key2 = normalizeForMatch(ev.spell);
-      if (ev.type === 'applied') buffState[key2] = {name:ev.spell, stack:ev.stack||1};
-      else if (ev.type === 'stacked' && buffState[key2]) buffState[key2].stack = ev.stack||((buffState[key2].stack||1)+1);
-      else if (ev.type === 'removed') delete buffState[key2];
-    }
-
-    if (aplSpellNorms.has(normalizeForMatch(c.spell))) inAPL++;
-    const v = evaluateAPLAtCast(c, buffState, c.runicPower, aplParsed, pullDurMs);
-    if (v.length) violations.push({cast:c, suggestions:v});
-  }
-
-  const result = {inAPL, violations, total: casts.length};
-  _aplResultCache[key] = result;
-  return result;
-}
 
 function renderPerfTab() {
   const pullSel = document.getElementById('perf-pull-select');
@@ -3232,7 +2846,7 @@ function renderPerfTab() {
 
   pullSel.innerHTML = '<option value="">— Pull wählen —</option>'
     + [...analysisPulls].reverse().map(p =>
-        `<option value="${p.num}"${perfSelectedPull===p.num?' selected':''}>#${p.num} ${escHtml(p.bossName)} (${formatDuration(p.endTime-p.startTime)}) ${p.success?'[Kill]':'[Wipe]'}</option>`
+        `<option value="${p.num}"${perfSelectedPull===p.num?' selected':''}>#${p.num} ${escHtml(p.bossName)} (${formatDuration(p.endTime-p.startTime)}) ${p.success?'[Kill]':'[wipe]'}</option>`
       ).join('');
 
   const players = new Set();
@@ -3242,7 +2856,7 @@ function renderPerfTab() {
       Object.keys(p.perfData.healing||{}).forEach(n => players.add(n.split('-')[0]));
     }
   }
-  playerSel.innerHTML = '<option value="">— Spieler wählen —</option>'
+  playerSel.innerHTML = '<option value="">— players wählen —</option>'
     + [...players].sort().map(n =>
         `<option value="${escHtml(n)}"${perfSelectedPlayer===n?' selected':''}>${escHtml(n)}</option>`
       ).join('');
@@ -3290,7 +2904,7 @@ function renderPerfResult() {
   }
   const pull = analysisPulls.find(p => p.num === perfSelectedPull);
   if (!pull?.perfData) {
-    el.innerHTML = '<div class="empty"><p>Keine Performance-Daten. Lade Logs neu.</p></div>';
+    el.innerHTML = '<div class="empty"><p>None Performance-Daten. Lade Logs neu.</p></div>';
     return;
   }
 
@@ -3318,7 +2932,7 @@ function renderPerfResult() {
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">
-          <th style="padding:6px 8px;text-align:left">${sortBtn('name','Spieler')}</th>
+          <th style="padding:6px 8px;text-align:left">${sortBtn('name','players')}</th>
           <th style="padding:6px 8px">${sortBtn('dps','DPS')}</th>
           <th style="padding:6px 8px;width:200px">DPS Bar</th>
           <th style="padding:6px 8px">${sortBtn('hps','HPS (eff+abs)')}</th>
@@ -3355,7 +2969,7 @@ function renderPerfResult() {
   if (perfSelectedPlayer) {
     html += renderPlayerDetail(pull, perfSelectedPlayer, dur);
   } else {
-    html += `<div class="empty" style="padding:20px"><p style="font-size:13px">Klick auf einen Spieler für Details, oder ↑↓ Pfeiltasten</p></div>`;
+    html += `<div class="empty" style="padding:20px"><p style="font-size:13px">Klick auf einen players für Details, oder ↑↓ Pfeiltasten</p></div>`;
   }
 
   el.innerHTML = html;
@@ -3398,7 +3012,7 @@ function renderPlayerDetail(pull, playerName, durSec) {
     <div class="grid-4" style="gap:12px;margin-bottom:16px">
       ${dps>0?`<div class="stat-box"><div class="stat-label">DPS</div><div class="stat-value" style="font-size:22px;color:${color}">${formatNum(Math.round(dps))}</div><div class="stat-sub">${formatNum(totalDmg)} total</div></div>`:''}
       ${hps>0?`<div class="stat-box"><div class="stat-label">HPS (eff+abs)</div><div class="stat-value green" style="font-size:22px">${formatNum(Math.round(hps))}</div><div class="stat-sub">${healEntry?`${Math.round((totalHeal/(totalHeal+totalAbs||1))*100)}% Heal / ${Math.round((totalAbs/(totalHeal+totalAbs||1))*100)}% Absorb`:'Nur Absorbs'}</div></div>`:''}
-      <div class="stat-box"><div class="stat-label">CPM</div><div class="stat-value" style="font-size:22px">${cpm.toFixed(1)}</div><div class="stat-sub">${casts.length} Casts total</div></div>
+      <div class="stat-box"><div class="stat-label">CPM</div><div class="stat-value" style="font-size:22px">${cpm.toFixed(1)}</div><div class="stat-sub">${casts.length} casts total</div></div>
       <div class="stat-box"><div class="stat-label">GCD-Eff.</div><div class="stat-value" style="font-size:22px;color:${gcdEff>85?'var(--green)':gcdEff>70?'var(--gold)':'var(--red)'}">${gcdEff.toFixed(0)}%</div><div class="stat-sub">${idleTime.toFixed(1)}s idle</div></div>
     </div>`;
 
@@ -3471,58 +3085,7 @@ function renderPlayerDetail(pull, playerName, durSec) {
     }
   }
 
-  // ── APL Analysis panels ─────────────────────────────────────────
-  {
-    const _aplShort = playerName.split('-')[0];
-    const _aplResult = getAPLResultCached(pull, playerName, casts);
 
-    const _aplGotoBtn = '<button class="goto-tab-btn" data-tab="apl" data-pull="' + pull.num + '" data-player="' + escHtml(_aplShort) + '" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--border-lit);background:var(--bg-panel);color:var(--text-sec);cursor:pointer">&rarr; APL Detail</button>';
-
-    html += '<div class="grid-2" style="gap:14px;margin-bottom:14px">';
-
-    // Panel 1: In APL erkannt
-    html += '<div class="card" style="padding:12px;background:var(--bg-deep)">';
-    html += '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">&#128203; In APL erkannt</div>';
-    if (_aplResult) {
-      const pct = Math.round(_aplResult.inAPL / Math.max(_aplResult.total,1) * 100);
-      html += '<div class="stat-value green" style="font-size:28px">' + _aplResult.inAPL + '</div>';
-      html += '<div class="stat-sub">' + pct + '% von ' + _aplResult.total + ' Casts';
-      if (aplParsed.specName) html += ' &nbsp;&middot;&nbsp; ' + escHtml(aplParsed.specName);
-      html += '</div>';
-    } else {
-      html += '<div style="color:var(--text-dim);font-size:12px;margin-bottom:8px">Keine APL geladen</div>';
-      html += _aplGotoBtn;
-    }
-    html += '</div>';
-
-    // Panel 2: Violations
-    html += '<div class="card" style="padding:12px;background:var(--bg-deep)">';
-    html += '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">&#9888;&#65039; M&#246;gliche Violations</div>';
-    if (_aplResult) {
-      if (_aplResult.violations.length === 0) {
-        html += '<div style="color:var(--green);font-size:13px">&#9989; Keine Abweichungen</div>';
-      } else {
-        html += '<div class="stat-value red" style="font-size:28px">' + _aplResult.violations.length + '</div>';
-        html += '<div class="stat-sub">APL-Abweichungen</div>';
-        html += '<div style="margin-top:8px;max-height:150px;overflow-y:auto">';
-        _aplResult.violations.slice(0,5).forEach(({cast, suggestions}) => {
-          html += '<div style="margin-bottom:5px;padding:5px;background:rgba(192,57,43,0.06);border-left:2px solid var(--red);border-radius:3px;font-size:11px">';
-          html += '<span style="color:var(--text-dim);font-family:var(--font-mono)">' + formatDuration(cast.offsetMs) + '</span> ';
-          html += spellLink(cast.spell, '', cast.spellId);
-          if (suggestions[0]) html += '<div style="color:rgba(192,57,43,0.8);font-size:10px;margin-top:1px">&#8593; Prio ' + (suggestions[0].priority+1) + ': ' + spellLink(suggestions[0].spell,'') + ' &mdash; ' + escHtml((suggestions[0].reason||'').substring(0,50)) + '</div>';
-          html += '</div>';
-        });
-        if (_aplResult.violations.length > 5) html += '<div style="color:var(--text-dim);font-size:10px">&hellip;' + (_aplResult.violations.length-5) + ' weitere</div>';
-        html += '</div>';
-        html += '<div style="margin-top:6px">' + _aplGotoBtn + '</div>';
-      }
-    } else {
-      html += '<div style="color:var(--text-dim);font-size:12px">APL erforderlich</div>';
-    }
-    html += '</div>';
-
-    html += '</div>';
-  }
     // ── Cast Timeline — per-spell rows (Raid-CD style) ──────────
   if (casts.length > 0) {
     const pullDurMs = pull.endTime - pull.startTime;
@@ -3559,7 +3122,7 @@ function renderPlayerDetail(pull, playerName, durSec) {
     // Death markers
     (pull.deaths||[]).filter(d=>d.name.split('-')[0].toLowerCase()===pnorm).forEach(d=>{
       const x = tx(d.offsetMs).toFixed(1);
-      svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="rgba(192,57,43,0.4)" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+      svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="rgba(192,57,43,0.55)" stroke-width="2"><title>☠ '+escHtml(d.name||' ')+' @ '+formatDuration(d.offsetMs)+(d.cause?' — '+escHtml(d.cause):'')+'</title></line>`;
       svg += `<text x="${x}" y="${PAD_T+10}" text-anchor="middle" font-size="9" fill="rgba(192,57,43,0.8)">&#128128;</text>`;
     });
 
@@ -3619,11 +3182,14 @@ function perfSort(col) {
 
 function perfSelectPlayer(name) {
   perfSelectedPlayer = perfSelectedPlayer === name ? null : name;
+  // Mirror to selectedPlayer so CD timeline in Analyze tab is filtered
+  selectedPlayer = perfSelectedPlayer;
   if (perfSelectedPlayer && perfSelectedPull) {
     syncTabSelection(perfSelectedPull, perfSelectedPlayer);
-    tryAutoLoadAPL().catch(()=>{});
   }
   renderPerfResult();
+  // Refresh CD timeline
+  if (selectedPullNum) renderCDTimeline();
 }
 
 function perfPullChanged() {
@@ -3687,20 +3253,6 @@ document.addEventListener('keydown', e => {
 });
 
 // ── APL ──────────────────────────────────────────────────────────
-async function runAndRenderAPL(){
-  if(!aplSelectedPlayer){renderAPLResult();return;}
-  const pull=aplSelectedPull?analysisPulls.find(p=>p.num===aplSelectedPull):analysisPulls.find(p=>p.playerCasts&&p.playerCasts.some(c=>(c.playerName||'').split('-')[0]===aplSelectedPlayer.split('-')[0]));
-  if(pull){
-    const detectedSpec=autoSelectAPL(pull,aplSelectedPlayer);
-    const currentSpec=aplParsed?.specName;
-    if(detectedSpec&&detectedSpec!==currentSpec){
-      const s=document.getElementById('apl-load-status');if(s){s.textContent='Erkannte: '+detectedSpec+'…';s.style.color='var(--text-sec)';}
-      const ss=document.getElementById('apl-spec-select');if(ss)ss.value=detectedSpec;
-      await aplLoadFromGitHub(detectedSpec);return;
-    }else if(detectedSpec){const ss=document.getElementById('apl-spec-select');if(ss)ss.value=detectedSpec;}
-  }
-  renderAPLResult();
-}
 
 // ── KEYBOARD NAVIGATION ───────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
@@ -3767,6 +3319,24 @@ function initDensityChartHover(chartId) {
   });
 }
 
+
+function _updateHeaderPullInfo(pull) {
+  const panel = document.getElementById('header-pull-info');
+  const bossEl = document.getElementById('header-boss');
+  const metaEl = document.getElementById('header-meta');
+  if (!panel || !bossEl || !metaEl) return;
+  if (!pull) { panel.style.display='none'; return; }
+  const dt = pull.startTime ? new Date(pull.startTime) : null;
+  const dateStr = dt ? String(dt.getUTCDate()).padStart(2,'0')+'/'+String(dt.getUTCMonth()+1).padStart(2,'0')+'/'+String(dt.getUTCFullYear()).slice(-2) : '';
+  // WoW log timestamps are local server time — display without TZ conversion
+const _h = dt ? String(dt.getUTCHours()).padStart(2,'0') : '';
+const _m = dt ? String(dt.getUTCMinutes()).padStart(2,'0') : '';
+const timeStr = _h ? _h+':'+_m : '';
+  bossEl.textContent = pull.bossName || '';
+  const _parts = [dateStr, timeStr, 'Pull #'+pull.num].filter(Boolean);
+  metaEl.textContent = _parts.length ? '  —  ' + _parts.join('  —  ') : '';
+  panel.style.display = 'block';
+}
 // ── GOTO TAB BUTTON DELEGATION ──────────────────────────────────
 document.addEventListener('click', e => {
   const btn = e.target.closest('.goto-tab-btn');
@@ -3783,6 +3353,7 @@ loadCooldowns();
 loadRaidCDs();
 loadOffCDs();
 loadDpsPots();
+loadBossAbilities();
 renderAnalysis([]);
 
 // ── WOWHEAD TOOLTIPS ────────────────────────────────────────────
@@ -3797,7 +3368,10 @@ function rehintWowhead() {
 const SPELL_CACHE_KEY = 'wow_parser_spell_cache_v1';
 let spellCache = {};
 (function loadSpellCache() {
-  try { spellCache = JSON.parse(localStorage.getItem(SPELL_CACHE_KEY) || '{}'); } catch(e) { spellCache = {}; }
+  try {
+    const _c = JSON.parse(localStorage.getItem(SPELL_CACHE_KEY) || '{}');
+    for (const k of Object.keys(_c)) if (_c[k] !== null) spellCache[k] = _c[k];
+  } catch(e) { spellCache = {}; }
 })();
 function saveSpellCache() {
   try { localStorage.setItem(SPELL_CACHE_KEY, JSON.stringify(spellCache)); } catch(e) {}
@@ -3805,6 +3379,24 @@ function saveSpellCache() {
 
 // In-flight requests to avoid duplicate fetches
 const spellFetching = {};
+
+async function resolveSpellById(id) {
+  const cacheKey = '_id_' + id;
+  if (spellCache[cacheKey] !== undefined) return spellCache[cacheKey];
+  if (spellFetching[cacheKey]) return spellFetching[cacheKey];
+  const promise = fetch('https://nether.wowhead.com/tooltip/spell/' + id + '?dataEnv=4&locale=0')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      const result = d && d.id ? { id: d.id, icon: d.icon || null } : null;
+      spellCache[cacheKey] = result;
+      saveSpellCache();
+      delete spellFetching[cacheKey];
+      return result;
+    })
+    .catch(() => { spellCache[cacheKey] = null; delete spellFetching[cacheKey]; return null; });
+  spellFetching[cacheKey] = promise;
+  return promise;
+}
 
 async function resolveSpell(name) {
   if (spellCache[name] !== undefined) return spellCache[name]; // null = not found
@@ -3819,7 +3411,7 @@ async function resolveSpell(name) {
       delete spellFetching[name];
       return result;
     })
-    .catch(() => { spellCache[name] = null; delete spellFetching[name]; return null; });
+    .catch(() => { delete spellFetching[name]; return null; }); // don't cache failures
   spellFetching[name] = promise;
   return promise;
 }
@@ -3828,6 +3420,55 @@ async function resolveSpell(name) {
 // - fetch ID via API
 // - update data-wowhead="spell=ID" so Wowhead tooltip script works
 // - prepend spell icon
+async function enrichBossIcons(containerEl) {
+  if (!containerEl) return;
+  const icons = Array.from(containerEl.querySelectorAll('img.boss-ability-icon:not([data-resolved]), image.boss-ability-icon:not([data-resolved])'));
+  if (!icons.length) return;
+  await Promise.all(icons.map(async img => {
+    img.dataset.resolved = '1';
+    const spellId = img.dataset.spellid;
+    const name    = img.dataset.spellname;
+    let info = null;
+    // Try numeric ID first via direct Wowhead endpoint
+    if (spellId && /^\d+$/.test(spellId)) {
+      const ck = 'boss_id_' + spellId;
+      if (spellCache[ck]) {
+        info = spellCache[ck];
+      } else {
+        try {
+          const url = 'https://nether.wowhead.com/tooltip/spell/' + spellId + '?dataEnv=1&locale=0';
+          const r = await fetch(url);
+          if (r.ok) {
+            const d = await r.json();
+            if (d && d.icon) { info = { id: d.id||parseInt(spellId), icon: d.icon }; spellCache[ck] = info; saveSpellCache(); }
+          }
+        } catch(e) {}
+      }
+    }
+    // Fallback: slug-based resolveSpell
+    if (!info && name) {
+      info = await resolveSpell(name);
+    }
+    if (!info) return;
+    if (info.icon) {
+      const _iconUrl = 'https://wow.zamimg.com/images/wow/icons/large/' + info.icon + '.jpg';
+      if (img.tagName === 'image') { img.setAttribute('href', _iconUrl); } else { img.src = _iconUrl; }
+      if (img.tagName !== 'image') {
+        img.onerror = () => {
+          img.onerror = () => {};
+          img.src = img.src.replace('/large/', '/small/');
+        };
+      }
+    } // no icon — keep questionmark placeholder
+    const wrapper = img.parentElement;
+    if (wrapper && info.id) {
+      wrapper.dataset.wowhead = 'spell=' + info.id;
+      wrapper.setAttribute('rel', 'spell=' + info.id);
+    }
+  }));
+  rehintWowhead();
+}
+
 async function enrichSpellLinks(containerEl) {
   if (!containerEl) return;
   const links = Array.from(containerEl.querySelectorAll('a.wh-spell:not([data-enriched])'));
@@ -3846,7 +3487,7 @@ async function enrichSpellLinks(containerEl) {
     if (info.icon) {
       if (!a.querySelector('img')) {
         const img = document.createElement('img');
-        img.src = 'https://wow.zamimg.com/images/wow/icons/small/' + info.icon + '.jpg';
+        img.src = 'https://wow.zamimg.com/images/wow/icons/large/' + info.icon + '.jpg';
         img.width = 15; img.height = 15;
         img.style.cssText = 'border-radius:2px;margin-right:4px;vertical-align:middle;flex-shrink:0;image-rendering:crisp-edges;position:relative;top:-1px';
         img.onerror = () => img.remove();
@@ -3886,6 +3527,7 @@ function spellLink(name, cssClass, spellId) {
     + ' data-spellname="' + escHtml(name) + '"'
     + ' target="_blank" rel="noopener">' + escHtml(name) + '</a>';
 }
+
 
 
 </script>
