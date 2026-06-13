@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER V2.3</div>
+      <div class="logo-text">COMBATLOG PARSER V2.4</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -183,7 +183,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   </div>
   <div class="tabs">
     <button class="tab-btn" onclick="switchTab('live')">&#9889; Live</button>
-    <button class="tab-btn" onclick="switchTab('analysis')">&#128202; Analysis</button>
+    <button class="tab-btn active" onclick="switchTab('analysis')">&#128202; Analyze</button>
     <button class="tab-btn" onclick="switchTab('perf')">&#128202; Performance</button>
     <button class="tab-btn" onclick="switchTab('settings')">&#9881; Settings</button>
   </div>
@@ -261,7 +261,6 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="section">
     <div class="flex-gap" style="margin-bottom:12px">
       <button class="btn btn-primary" id="an-open-btn" onclick="openAnalysisFiles()">&#128194; Log-Dateien hinzuf&#252;gen</button>
-      <input type="file" id="analysis-file-input" accept=".txt,.log" multiple style="display:none" onchange="handleAnalysisFiles(event)">
       <button class="btn" onclick="clearAnalysis()">&#128465; Zur&#252;cksetzen</button>
       <select class="boss-select" id="boss-filter" onchange="filterBoss()"><option value="">&#8212; All Bosses &#8212;</option></select>
       <label class="ctrl-label" style="margin-left:6px">Ignore deaths above:</label>
@@ -448,24 +447,22 @@ const DEATH_CONTEXT_WINDOW = 5000;
 
 // Personal defensive CDs (tracked in death recap per-player)
 const DEFAULT_COOLDOWNS = [
-  ['Healthstone','consumable'],['Health Potion','consumable'],['Refreshing Healing Potion','consumable'],
-  ['Cauterizing Shadows','consumable'],['Phial of Tepid Versatility','consumable'],
-  ['Icebound Fortitude','major'],['Anti-Magic Shell','major'],['Lichborne','major'],
+  ['Healthstone','consumable'],['Silvermoon Health Potion','consumable'],
+  ['Icebound Fortitude','major'],['Anti-Magic Shell','major'],
   ['Death Pact','major'],['Vampiric Blood','major'],
-  ['Shield Wall','major'],['Die by the Sword','major'],['Spell Reflection','minor'],
-  ['Ignore Pain','minor'],
-  ['Divine Shield','major'],['Ardent Defender','major'],['Guardian of Ancient Kings','major'],
-  ['Blessing of Protection','major'],['Lay on Hands','major'],
-  ['Fortifying Brew','major'],['Zen Meditation','major'],['Diffuse Magic','major'],['Dampen Harm','major'],
+  ['Shield Wall','major'],['Die by the Sword','major'],['Spell Reflection','minor'],['Rallying Cry','major'],
+  ['Divine Shield','major'],['Ardent Defender','major'],['Guardian of Ancient Kings','major'],['Divine Protection','major'],
+  ['Blessing of Protection','major'],['Lay on Hands','major'],['Ice Barrier','minor'],
+  ['Fortifying Brew','major'],['Diffuse Magic','major'],['Dampen Harm','major'],
   ['Barkskin','major'],['Survival Instincts','major'],['Frenzied Regeneration','minor'],
-  ['Blur','major'],['Netherwalk','major'],['Metamorphosis','major'],
+  ['Blur','major'],['Darkness','major'],['Netherwalk','major'],
   ['Feint','minor'],['Evasion','major'],['Cloak of Shadows','major'],['Crimson Vial','minor'],
   ['Exhilaration','major'],['Survival of the Fittest','major'],
-  ['Ice Block','major'],['Alter Time','minor'],['Prismatic Barrier','minor'],['Blazing Barrier','minor'],
+  ['Ice Block','major'],['Ice Cold','major'],['Alter Time','minor'],['Prismatic Barrier','minor'],['Blazing Barrier','minor'],
   ['Unending Resolve','major'],['Dark Pact','major'],
   ['Astral Shift','major'],['Earth Elemental','major'],
   ['Dispersion','major'],['Fade','minor'],['Pain Suppression','major'],['Guardian Spirit','major'],
-  ['Obsidian Scales','major'],['Renewing Blaze','major'],['Time Spiral','major'],
+  ['Obsidian Scales','major'],['Renewing Blaze','major'],['Time Spiral','major'],['Roar of Sacrifice','major'],
 ];
 
 // Resurrection spells — used to calculate time-to-rez
@@ -507,6 +504,11 @@ const DEFAULT_RAID_CDS = [
 let defCooldowns = new Map(DEFAULT_COOLDOWNS);
 const playerSpecs = {};
 let raidCDSet = new Set(DEFAULT_RAID_CDS);
+const WORKER_SPELL_ID_ROLE = new Map([
+  [114052, 'raid'],  // Ascendance Resto
+  [114050, 'off'],   // Ascendance Ele
+  [114051, 'off'],   // Ascendance Enh
+]);
 
 function parseTimestamp(str) {
   const m = str.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)\.(\d+)/);
@@ -694,12 +696,16 @@ function processLine(line) {
     if (isRealPlayer && currentPull) {
       const offs = timestamp - currentPull.startTime;
       // Track raid CDs
-      if (spellName && raidCDSet.has(spellName)) {
-        const isDup = currentPull.raidCDs.some(r =>
-          r.spell === spellName && r.caster === srcName && Math.abs(r.offsetMs - offs) < 2000
-        );
-        if (!isDup) {
-          currentPull.raidCDs.push({ offsetMs: offs, caster: srcName, spell: spellName, spellId });
+      if (spellName) {
+        const _idRole = spellId ? WORKER_SPELL_ID_ROLE.get(parseInt(spellId)) : null;
+        const _isRaid = _idRole === 'raid' || (!_idRole && raidCDSet.has(spellName));
+        if (_isRaid) {
+          const isDup = currentPull.raidCDs.some(r =>
+            r.spell === spellName && r.caster === srcName && Math.abs(r.offsetMs - offs) < 2000
+          );
+          if (!isDup) {
+            currentPull.raidCDs.push({ offsetMs: offs, caster: srcName, spell: spellName, spellId });
+          }
         }
       }
       // Track ALL player casts for APL analysis
@@ -843,17 +849,26 @@ self.onmessage = function(e) {
 // Raid-wide CDs (separate from personal CDs)
 const DEFAULT_OFF_CD_LIST = [
   'Bloodlust','Heroism','Time Warp','Fury of the Aspects',
-  'Recklessness','Avatar','Vendetta','Colossus Smash',
-  'Combustion','Arcane Power','Icy Veins',
+  'Recklessness','Avatar','Vendetta','Colossus Smash','Bladestorm',
   'Bestial Wrath','Coordinated Assault',
   'Dark Transformation','Army of the Dead',
+  "Frostwyrm's Fury",'Breath of Sindragosa',
+  'Metamorphosis','The Hunt',
+  'Void Metamorphosis', 
+  'Celestial Alignment','Convoke the Spirits',
+  'Berserk','Berserking',
+  'Arcane Surge','Combustion','Ray of Frost','Frozen Orb',
+  'Avenging Wrath','Execution Sentence',
+  'Voidform','Power Infusion',
+  'Shadow Blades','Vanish','Deathmark','Kingsbane',
+  'Ascendance','Stormkeeper',
+  'Summon Demonic Tyrant','Grimoire: Imp Lord','Grimoire: Fel ravager',
 ];
 
 const DEFAULT_DPS_POT_LIST = [
-  'Potion of Recklessness',"Light's Potential",
-  'Elemental Potion of Ultimate Power','Bottled Putrescence',
-  'Tempered Potion','Algari Mana Potion',
-  'Healthstone','Health Potion','Refreshing Healing Potion',
+  'Potion of Recklessness',
+  "Light's Potential",
+  'Lightfused Mana Potion',
 ];
 
 let userOffCDs = [...DEFAULT_OFF_CD_LIST];
@@ -868,9 +883,11 @@ const DEFAULT_RAID_CD_LIST = [
   'Aura Mastery','Devotion Aura',
   'Revival','Restoral',
   'Tranquility',
-  'Spirit Link Totem',
+  'Spirit Link Totem','Ascendance',
   'Vampiric Embrace',
-  'Smoke Bomb',
+  'Evangelism','Ultimate Penitence',
+  'Darkness',
+  
 ];
 let userRaidCDs = [...DEFAULT_RAID_CD_LIST];
 
@@ -900,6 +917,13 @@ const DEFAULT_CD_LIST = [
 ];
 
 let userCooldowns = [...DEFAULT_CD_LIST];
+
+// Spell-ID overrides: same name, different role by ID
+const SPELL_ID_ROLE = new Map([
+  [114052, 'raid'],  // Ascendance (Resto)
+  [114050, 'off'],   // Ascendance (Ele)
+  [114051, 'off'],   // Ascendance (Enh)
+]);
 
 function getCooldownMap() { return new Map(userCooldowns); }
 
@@ -1373,20 +1397,21 @@ function renderCDTimeline() {
   if (typeof _cdChartMode !== 'undefined' && _cdChartMode === 'B') {
     const _fp2 = selectedPlayer || null;
     el.innerHTML = buildStackedBarsChart(pull, {showDef, showOff, showHeal, showDps, showBoss, filterPlayer:_fp2});
-    setTimeout(()=>{ enrichBossIcons(el); enrichSpellLinks(el); }, 50);
+    setTimeout(()=>{ positionBossIcons(el); enrichBossIcons(el); enrichSpellLinks(el); }, 50);
   } else {
     const _dcId = 'dc-' + (pull.num||0) + '-0';
     const _fp = selectedPlayer || null;
     el.innerHTML = buildDensityChart(pull, {showDef, showOff, showHeal, showDps, showBoss, filterPlayer:_fp}, _dcId);
-    setTimeout(() => { initDensityChartHover(_dcId); enrichSpellLinks(el); enrichBossIcons(el).then(()=>rehintWowhead()); }, 50);
+    setTimeout(() => { initDensityChartHover(_dcId); positionBossIcons(el); enrichSpellLinks(el); enrichBossIcons(el).then(()=>rehintWowhead()); }, 50);
   }
 }
 
 // Boss ability visibility per spell
 let _bossAbilityEnabled = {};
 function isBossAbilityEnabled(spell) {
-  if (!Object.keys(_bossAbilityEnabled).length) return true;
-  return _bossAbilityEnabled[spell] !== false;
+  if (_bossAbilityEnabled[spell] !== undefined) return _bossAbilityEnabled[spell] !== false;
+  // Unknown spell: use MIDNIGHT_ENABLED as default (false for unlisted spells)
+  return _MIDNIGHT_ENABLED.has(spell);
 }
 function saveBossAbilities(){try{localStorage.setItem('wow_boss_abilities',JSON.stringify(_bossAbilityEnabled));}catch(e){}}
 const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Iris of Oblivion']);
@@ -1446,13 +1471,14 @@ function renderLiveCDChart(){
   const sO=document.getElementById('live-cd-show-off')?.checked;
   const sH=document.getElementById('live-cd-show-heal')?.checked;
   const sP=document.getElementById('live-cd-show-dps')?.checked;
+  const sBoss=document.getElementById('live-cd-show-boss')?.checked;
   if(_liveCDChartMode==='B'){
-    const sBoss=document.getElementById('live-cd-show-boss')?.checked;
     el.innerHTML=buildStackedBarsChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP,showBoss:sBoss});
+    setTimeout(()=>{ positionBossIcons(el); enrichBossIcons(el); enrichSpellLinks(el); },50);
   } else {
     const dcId='dc-live-panel-'+(pull.num||0);
     el.innerHTML=buildDensityChart(pull,{showDef:sD,showOff:sO,showHeal:sH,showDps:sP,showBoss:sBoss},dcId);
-    setTimeout(()=>{ initDensityChartHover(dcId); enrichBossIcons(document.getElementById('live-cd-chart')); },50);
+    setTimeout(()=>{ initDensityChartHover(dcId); positionBossIcons(el); enrichSpellLinks(el); enrichBossIcons(el).then(()=>rehintWowhead()); },50);
   }
 }
 function toggleCDChartMode() {
@@ -1471,8 +1497,18 @@ function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true,
   if(Array.isArray(pull.playerCasts)){for(const c of pull.playerCasts){const _ps=(c.playerName||'?').split('-')[0];if(filterPlayer){const _fL=filterPlayer.toLowerCase(),_pL=_ps.toLowerCase();if(!_pL.includes(_fL)&&!_fL.includes(_pL))continue;}if(c.spell)allCasts.push({offsetMs:c.offsetMs,spell:c.spell,player:_ps,color:getPlayerClassColor(pull,_ps)||'#aaa'});}}
   const raidCasts=(pull.raidCDs||[]).map(c=>({offsetMs:c.offsetMs,spell:c.spell,player:(c.caster||'?').split('-')[0],color:getPlayerClassColor(pull,(c.caster||'?').split('-')[0])||'#c8a84b'}));
   const cats=[];
-  if(showDef){const c=allCasts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));if(c.length)cats.push({name:'Defensive CDs',casts:c,col:'#c8a84b'});}
-  if(showOff){const c=allCasts.filter(c=>offSet.has(c.spell));if(c.length)cats.push({name:'Offensive CDs',casts:c,col:'#e05050'});}
+  if(showDef){const c=allCasts.filter(c=>{
+    const idRole=c.spellId?SPELL_ID_ROLE.get(parseInt(c.spellId)):null;
+    if(idRole==='raid'||idRole==='def')return true;
+    if(idRole)return false; // ID override to different cat
+    return defMap.has(c.spell)||raidSet.has(c.spell);
+  });if(c.length)cats.push({name:'Defensive CDs',casts:c,col:'#c8a84b'});}
+  if(showOff){const c=allCasts.filter(c=>{
+    const idRole=c.spellId?SPELL_ID_ROLE.get(parseInt(c.spellId)):null;
+    if(idRole==='off')return true;
+    if(idRole)return false;
+    return offSet.has(c.spell);
+  });if(c.length)cats.push({name:'Offensive CDs',casts:c,col:'#e05050'});}
   if(showHeal){const c=allCasts.filter(c=>healSpells.has(c.spell));if(c.length)cats.push({name:'Healpots/Stones',casts:c,col:'#50c878'});}
   if(showDps){const c=allCasts.filter(c=>potSet.has(c.spell)&&!healSpells.has(c.spell));if(c.length)cats.push({name:'DPS-Pots',casts:c,col:'#3FC7EB'});}
   // Boss Abilities as a row in the chart
@@ -1519,8 +1555,31 @@ function buildStackedBarsChart(pull, {showDef=true, showOff=true, showHeal=true,
       svg+='<line x1="'+_x+'" y1="'+PAD_T+'" x2="'+_x+'" y2="'+(H-PAD_B)+'" stroke="rgba(180,180,180,0.35)" stroke-width="1.5" stroke-dasharray="4,2"><title>'+escHtml(c.bossName||'')+': '+escHtml(c.spell)+' @ '+formatDuration(c.offsetMs)+'</title></line>';
     });
   }
+  // Boss icon strip (positioned by positionBossIcons() after render)
+  let _barsIcoHtml = '';
+  if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
+    const _seenBI=new Set(), _bItems=[];
+    pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c=>{
+      const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenBI.has(_k))return; _seenBI.add(_k);
+      _bItems.push(c);
+    });
+    if (_bItems.length) {
+      const _bParts = _bItems.map(ic=>{
+        const _nId=ic.spellId&&/^\d+$/.test(String(ic.spellId))?String(ic.spellId):'';
+        const _ca=spellCache['boss_id_'+_nId]||spellCache[ic.spell];
+        const _src=_ca&&_ca.icon?'https://wow.zamimg.com/images/wow/icons/large/'+_ca.icon+'.jpg':'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
+        return '<a class="q1 boss-ico" href="https://www.wowhead.com/spell='+(_nId||0)+'" data-wowhead="spell='+(_nId||0)+'"'
+          +' data-offs="'+ic.offsetMs+'" data-pdur="'+pullDurMs+'"'
+          +' title="'+escHtml(ic.spell)+' @ '+formatDuration(ic.offsetMs)+'"'
+          +' style="position:absolute;top:0;width:28px;height:28px;border-radius:4px;border:1px solid rgba(180,180,180,0.5);display:block;overflow:hidden;text-decoration:none">'
+          +'<img class="boss-ability-icon" data-spellname="'+escHtml(ic.spell)+'" data-spellid="'+escHtml(ic.spellId||'')+'" src="'+_src+'" style="width:100%;height:100%;display:block;image-rendering:crisp-edges">'
+          +'</a>';
+      });
+      _barsIcoHtml = '<div class="boss-ico-strip" data-padl="'+PAD_L+'" data-padr="'+PAD_R+'" data-svgw="'+W+'" style="position:relative;height:30px;margin-bottom:2px;overflow:visible">'+_bParts.join('')+'</div>';
+    }
+  }
   svg+='</svg>';
-  return svg;
+  return (_barsIcoHtml||'')+svg;
 }
 function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, showDps=true, showBoss=true, filterPlayer=null} = {}, chartIdOverride) {
   const defMap = getCooldownMap(), raidSet = getRaidCDSet();
@@ -1554,11 +1613,21 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   // Category cast lists (with full info for tooltip)
   const cats = [];
   if (showDef) {
-    const c = allCasts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));
+    const c = allCasts.filter(c=>{
+      const idRole=c.spellId?SPELL_ID_ROLE.get(parseInt(c.spellId)):null;
+      if(idRole==='raid'||idRole==='def')return true;
+      if(idRole)return false;
+      return defMap.has(c.spell)||raidSet.has(c.spell);
+    });
     if (c.length) cats.push({name:'Defensive CDs', casts:c, col:'#c8a84b'});
   }
   if (showOff) {
-    const c = allCasts.filter(c=>offSet.has(c.spell));
+    const c = allCasts.filter(c=>{
+      const idRole=c.spellId?SPELL_ID_ROLE.get(parseInt(c.spellId)):null;
+      if(idRole==='off')return true;
+      if(idRole)return false;
+      return offSet.has(c.spell);
+    });
     if (c.length) cats.push({name:'Offensive CDs', casts:c, col:'#e05050'});
   }
   if (showHeal) {
@@ -1678,7 +1747,7 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
   // Boss icons: simple HTML div approach
   let _bossIconsHtml = '';
   if (showBoss && pull.bossCasts && pull.bossCasts.length > 0) {
-    const _seenI=new Set(), _twI=W-PAD_L-PAD_R, _items=[];
+    const _seenI=new Set(), _items=[];
     pull.bossCasts.filter(c=>isBossAbilityEnabled(c.spell)).sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c=>{
       const _k=c.spell+'|'+Math.round(c.offsetMs/2000); if(_seenI.has(_k))return; _seenI.add(_k);
       _items.push(c);
@@ -1688,14 +1757,14 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
         const _nId=ic.spellId&&/^\d+$/.test(String(ic.spellId))?String(ic.spellId):'';
         const _ca=spellCache['boss_id_'+_nId]||spellCache[ic.spell];
         const _src=_ca&&_ca.icon?'https://wow.zamimg.com/images/wow/icons/large/'+_ca.icon+'.jpg':'https://wow.zamimg.com/images/wow/icons/large/inv_misc_questionmark.jpg';
-        const _pct=((PAD_L+(ic.offsetMs/pullDurMs)*_twI)/W*100).toFixed(2);
-        return '<a class="q1" href="https://www.wowhead.com/spell='+(_nId||0)+'" data-wowhead="spell='+(_nId||0)+'"'
+        return '<a class="q1 boss-ico" href="https://www.wowhead.com/spell='+(_nId||0)+'" data-wowhead="spell='+(_nId||0)+'"'
+          +' data-offs="'+ic.offsetMs+'" data-pdur="'+pullDurMs+'"'
           +' title="'+escHtml(ic.spell)+' @ '+formatDuration(ic.offsetMs)+'"'
-          +' style="position:absolute;left:calc('+_pct+'% - 14px);top:0;width:28px;height:28px;border-radius:4px;border:1px solid rgba(180,180,180,0.5);display:block;overflow:hidden;text-decoration:none">'
+          +' style="position:absolute;top:0;width:28px;height:28px;border-radius:4px;border:1px solid rgba(180,180,180,0.5);display:block;overflow:hidden;text-decoration:none">'
           +'<img class="boss-ability-icon" data-spellname="'+escHtml(ic.spell)+'" data-spellid="'+escHtml(ic.spellId||'')+'" src="'+_src+'" style="width:100%;height:100%;display:block;image-rendering:crisp-edges">'
           +'</a>';
       });
-      _bossIconsHtml = '<div style="position:relative;height:30px;margin-top:4px">'+_parts.join('')+'</div>';
+      _bossIconsHtml = '<div class="boss-ico-strip" data-svgid="'+chartId+'" data-padl="'+PAD_L+'" data-padr="'+PAD_R+'" data-svgw="'+W+'" style="position:relative;height:30px;margin-bottom:2px;overflow:visible">'+_parts.join('')+'</div>';
     }
   }
 
@@ -1718,8 +1787,8 @@ function buildDensityChart(pull, {showDef=true, showOff=true, showHeal=true, sho
 
   const tooltipId = chartId + '-tip';
   return '<div style="position:relative">'
-    + svg
     + (_bossIconsHtml||'')
+    + svg
     + '<div id="'+tooltipId+'" style="display:none;position:fixed;background:var(--bg-card);border:1px solid var(--border-lit);border-radius:8px;padding:10px 12px;pointer-events:none;z-index:9999;max-width:240px;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></div>'
     + '</div>';
 }
@@ -2126,7 +2195,12 @@ const CD_CAT_ORDER = ['major','minor','consumable'];
 function buildRaidCDHTML(pull, showBoss=true) {
   if (!pull.raidCDs || pull.raidCDs.length === 0) return '';
   const raidSet = getRaidCDSet();
-  const rawCDs = pull.raidCDs.filter(cd => raidSet.has(cd.spell));
+  const rawCDs = pull.raidCDs.filter(cd => {
+    const idRole = cd.spellId ? SPELL_ID_ROLE.get(parseInt(cd.spellId)) : null;
+    if (idRole === 'raid') return true;   // ID says it's a raid CD
+    if (idRole) return false;             // ID says it's something else
+    return raidSet.has(cd.spell);         // fall back to name
+  });
   if (rawCDs.length === 0) return '';
 
   const pullDurMs = pull.endTime - pull.startTime;
@@ -3420,6 +3494,30 @@ async function resolveSpell(name) {
 // - fetch ID via API
 // - update data-wowhead="spell=ID" so Wowhead tooltip script works
 // - prepend spell icon
+function positionBossIcons(containerEl) {
+  // Position boss icons by reading actual rendered SVG width
+  if (!containerEl) return;
+  const strips = containerEl.querySelectorAll('.boss-ico-strip');
+  strips.forEach(strip => {
+    const svgId = strip.dataset.svgid;
+    const svgEl = svgId ? document.getElementById(svgId) : containerEl.querySelector('svg');
+    if (!svgEl) return;
+    const svgRect = svgEl.getBoundingClientRect();
+    const svgW = parseFloat(strip.dataset.svgw) || 800;
+    const PAD_L = parseFloat(strip.dataset.padl) || 90;
+    const PAD_R = parseFloat(strip.dataset.padr) || 16;
+    const scale = svgRect.width / svgW; // px per SVG unit
+    strip.querySelectorAll('a.boss-ico').forEach(a => {
+      const offs = parseFloat(a.dataset.offs);
+      const pdur = parseFloat(a.dataset.pdur);
+      const tw = svgW - PAD_L - PAD_R;
+      const xSvg = PAD_L + (offs / pdur) * tw; // SVG coordinate
+      const xPx = xSvg * scale - 14; // pixel offset in container
+      a.style.left = xPx + 'px';
+    });
+  });
+}
+
 async function enrichBossIcons(containerEl) {
   if (!containerEl) return;
   const icons = Array.from(containerEl.querySelectorAll('img.boss-ability-icon:not([data-resolved]), image.boss-ability-icon:not([data-resolved])'));
