@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v2.4</div>
+      <div class="logo-text">COMBATLOG PARSER v2.5</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -612,9 +612,10 @@ let raidCDSet = new Set(DEFAULT_RAID_CDS);
 // Boss phase triggers for local combat logs
 // spellId → phase that starts when this spell is cast by a hostile unit
 const BOSS_PHASE_TRIGGERS = new Map([
-  // Midnight Falls — The Screambreaker
+  // Midnight Falls — L'ura
   [1255743, {id:2, name:'Intermission', isIntermission:true,  color:'#c8a84b'}], // Total Eclipse → Intermission
   [1282043, {id:3, name:'P2',           isIntermission:false, color:'#4b8bc8'}], // Into the Darkwell → P2
+  [1281123, {id:4, name:'P3',           isIntermission:false, color:'#dddddd'}], // Dark Meltdown → P3
 ]);
 
 const WORKER_SPELL_ID_ROLE = new Map([
@@ -3980,6 +3981,7 @@ function spellLink(name, cssClass, spellId) {
 const BOSS_PHASE_TRIGGERS = new Map([
   [1255743, {id:2, name:'Intermission', isIntermission:true,  color:'#c8a84b'}], // Total Eclipse → Intermission
   [1282043, {id:3, name:'P2',           isIntermission:false, color:'#4b8bc8'}], // Into the Darkwell → P2
+  [1281123, {id:4, name:'P3',           isIntermission:false, color:'#dddddd'}], // Dark Meltdown → P3
 ]);
 
 // WCL spell + death context caches
