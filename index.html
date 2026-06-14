@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v2.1</div>
+      <div class="logo-text">COMBATLOG PARSER v2.2</div>
       <div class="logo-sub">WoW Retail &middot; Streaming</div>
     </div>
   </div>
@@ -1285,7 +1285,7 @@ function deltaParseLines(lines) {
       if(state.currentPull){state.currentPull.endTime=ts;state.currentPull.success=false;mergeLivePull({...state.currentPull});}
       state.currentPull={bossName:parts[2],startTime:ts,endTime:null,success:false,deaths:[],
         events:[{type:'start',offsetMs:0,text:'Pull gestartet',detail:parts[2]}],
-        raidCDs:[], playerCasts:[], phaseTransitions:[]};
+        raidCDs:[], playerCasts:[], phaseTransitions:[], bossCasts:[]};
     } else if(ev==='ENCOUNTER_END'&&state.currentPull) {
       state.currentPull.endTime=ts; state.currentPull.success=parts[5]==='1';
       state.currentPull.events.push({type:state.currentPull.success?'end-kill':'end-wipe',
@@ -1304,6 +1304,16 @@ function deltaParseLines(lines) {
       }
     } else if(ev==='SPELL_AURA_APPLIED') {
       const dg=parts[5],sn=parts[10];
+      // Boss ability tracking via aura events
+      if(state.currentPull && parts[1] && (parts[1].startsWith('Creature-')||parts[1].startsWith('Vehicle-')) && sn) {
+        const _bFlags = parseInt(parts[3],16)||0;
+        if((_bFlags & 0x40)!==0) {
+          const _bOffs = ts - state.currentPull.startTime;
+          const _bNm = parts[2]||'';
+          if(_bNm && !state.currentPull.bossCasts.some(b=>b.spell===sn&&Math.abs(b.offsetMs-_bOffs)<500))
+            state.currentPull.bossCasts.push({offsetMs:_bOffs, bossName:_bNm, spell:sn, spellId:parts[9]});
+        }
+      }
       if(dg&&dg.startsWith('Player-')&&sn&&cdMap.has(sn)){
         const cat=cdMap.get(sn);
         if(!state.contextBuffer[dg]) state.contextBuffer[dg]=[];
@@ -1324,6 +1334,16 @@ function deltaParseLines(lines) {
       }
       // Phase trigger: boss casts (Creature- / Vehicle- GUIDs)
       if(srcGUID && (srcGUID.startsWith('Creature-') || srcGUID.startsWith('Vehicle-'))) {
+        // Track boss casts
+        if(state.currentPull && spellName) {
+          const _bSrcFlags = parseInt(parts[3],16)||0;
+          if((_bSrcFlags & 0x40) !== 0) { // hostile
+            const _bOffs = ts - state.currentPull.startTime;
+            const _bName = parts[2]||'';
+            if(_bName && !state.currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-_bOffs)<500))
+              state.currentPull.bossCasts.push({offsetMs:_bOffs, bossName:_bName, spell:spellName, spellId});
+          }
+        }
         const _bpt2 = BOSS_PHASE_TRIGGERS.get(parseInt(spellId));
         if(state.currentPull && _bpt2) {
           const _boffs = ts - state.currentPull.startTime;
