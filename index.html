@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER V2.7</div>
+      <div class="logo-text">COMBATLOG PARSER v 2.8</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -1261,7 +1261,7 @@ function deltaParseLines(lines) {
     if (line.indexOf('ENCOUNTER_')===-1 && line.indexOf('UNIT_DIED')===-1 &&
         line.indexOf('_DAMAGE')===-1 && line.indexOf('INSTAKILL')===-1 &&
         line.indexOf('_HEAL')===-1 && line.indexOf('AURA_APPLIED')===-1 &&
-        line.indexOf('CAST_SUCCESS')===-1) continue;
+        line.indexOf('CAST_SUCCESS')===-1 && line.indexOf('CAST_START')===-1) continue;
     const si=line.indexOf('  '); if(si===-1) continue;
     const ts=parseTimestampUI(line.substring(0,si)); if(!ts) continue;
     const rest=line.substring(si+2);
@@ -1273,7 +1273,7 @@ function deltaParseLines(lines) {
       if(state.currentPull){state.currentPull.endTime=ts;state.currentPull.success=false;mergeLivePull({...state.currentPull});}
       state.currentPull={bossName:parts[2],startTime:ts,endTime:null,success:false,deaths:[],
         events:[{type:'start',offsetMs:0,text:'Pull gestartet',detail:parts[2]}],
-        raidCDs:[], playerCasts:[]};
+        raidCDs:[], playerCasts:[], phaseTransitions:[]};
     } else if(ev==='ENCOUNTER_END'&&state.currentPull) {
       state.currentPull.endTime=ts; state.currentPull.success=parts[5]==='1';
       state.currentPull.events.push({type:state.currentPull.success?'end-kill':'end-wipe',
@@ -1315,6 +1315,7 @@ function deltaParseLines(lines) {
         const _bpt2 = BOSS_PHASE_TRIGGERS.get(parseInt(spellId));
         if(state.currentPull && _bpt2) {
           const _boffs = ts - state.currentPull.startTime;
+          if (!state.currentPull.phaseTransitions) state.currentPull.phaseTransitions = [];
           const _noDup = !state.currentPull.phaseTransitions.some(p => p.id === _bpt2.id && Math.abs(p.offsetMs - _boffs) < 5000);
           if (_noDup) {
               state.currentPull.phaseTransitions.push({offsetMs:_boffs, id:_bpt2.id, name:_bpt2.name, isIntermission:_bpt2.isIntermission, color:_bpt2.color});
