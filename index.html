@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v 2.8</div>
+      <div class="logo-text">COMBATLOG PARSER v2.0</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -748,6 +748,18 @@ function processLine(line) {
       }
     }
   } else if (event === 'SPELL_AURA_APPLIED' || event === 'SPELL_AURA_APPLIED_DOSE') {
+    // Boss ability tracking (original location - catches all boss abilities)
+    if ((parts[1].startsWith('Creature-') || parts[1].startsWith('Vehicle-')) && currentPull && spellName) {
+      const srcFlags2 = parseInt(parts[3], 16) || 0;
+      const isHostile2 = (srcFlags2 & 0x40) !== 0;
+      if (isHostile2) {
+        const offs2 = timestamp - currentPull.startTime;
+        const bossNm2 = parts[2].replace(/"/g,'');
+        if (bossNm2 && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offs2)<500)) {
+          currentPull.bossCasts.push({ offsetMs: offs2, bossName: bossNm2, spell: spellName, spellId: parts[9] });
+        }
+      }
+    }
     const srcName = parts[2], srcGUID = parts[1], destGUID = parts[5], destName = parts[6], spellName = parts[10];
     // Track buff events for APL analysis
     if (currentPull && destGUID && destGUID.startsWith('Player-') && spellName) {
