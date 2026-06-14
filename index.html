@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v2.6</div>
+      <div class="logo-text">COMBATLOG PARSER V2.7</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -1255,9 +1255,6 @@ function deltaParseLines(lines) {
     'SPELL_DAMAGE','SPELL_PERIODIC_DAMAGE','RANGE_DAMAGE','SWING_DAMAGE',
     'ENVIRONMENTAL_DAMAGE','SPELL_INSTAKILL','SPELL_HEAL','SPELL_PERIODIC_HEAL',
     'SPELL_AURA_APPLIED','SPELL_CAST_SUCCESS','SPELL_CAST_START']);
-  // DEBUG: log unique events seen
-  if (!window._seenEvents) window._seenEvents = new Set();
-  if (!window._seenEvents.has(ev)) { window._seenEvents.add(ev); console.log('[UI EVENT]', ev); }
   const raidSet = getRaidCDSet();
   for (const rawLine of lines) {
     const line = rawLine.trim(); if (!line) continue;
