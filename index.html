@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER V2.4</div>
+      <div class="logo-text">COMBATLOG PARSER V2.5</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -186,6 +186,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     <button class="tab-btn active" onclick="switchTab('analysis')">&#128202; Analyze</button>
     <button class="tab-btn" onclick="switchTab('perf')">&#128202; Performance</button>
     <button class="tab-btn" onclick="switchTab('settings')">&#9881; Settings</button>
+    <button class="tab-btn" onclick="switchTab('wcl')">&#128279; WCL Import</button>
   </div>
 </header>
 <main>
@@ -343,6 +344,108 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   </div>
 </div>
 <!-- SETTINGS -->
+<div id="view-wcl" class="view">
+  <div class="card section">
+    <div class="card-title">&#128279; WarcraftLogs Import</div>
+    <div style="display:flex;flex-direction:column;gap:14px;max-width:640px">
+
+      <!-- Credentials -->
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Client ID</label>
+          <input id="wcl-client-id" type="text" placeholder="Client ID" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px" oninput="wclSaveCreds(this.value,document.getElementById('wcl-client-secret').value)">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Client Secret</label>
+          <input id="wcl-client-secret" type="password" placeholder="Client Secret" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px" oninput="wclSaveCreds(document.getElementById('wcl-client-id').value,this.value)">
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:10px">&#127981; Gilden-Import</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:6px">Gilde</label>
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <div>
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:3px">Region</div>
+                <select id="wcl-region" style="background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+                  <option value="eu">EU</option>
+                  <option value="us">US</option>
+                  <option value="kr">KR</option>
+                  <option value="tw">TW</option>
+                </select>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:3px">Server</div>
+                <input id="wcl-server" type="text" placeholder="blackmoore" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+              </div>
+              <div style="flex:1.5">
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:3px">Gildenname</div>
+                <input id="wcl-guild" type="text" placeholder="Exiles of the Rift" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px" onkeydown="if(event.key==='Enter')wclLoadZones()">
+              </div>
+              <button class="btn" onclick="wclLoadZones()" style="white-space:nowrap;padding:8px 14px">&#128269; Laden</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:2">
+              <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Zone / Raid</label>
+              <select id="wcl-zone" disabled onchange="wclOnZoneChange()" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+                <option value="">— erst Gilde laden —</option>
+              </select>
+            </div>
+            <div style="flex:2">
+              <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Boss</label>
+              <select id="wcl-encounter" disabled style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+                <option value="">— erst Zone wählen —</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Schwierigkeit</label>
+              <select id="wcl-difficulty" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+                <option value="5">Mythic</option>
+                <option value="4">Heroic</option>
+                <option value="3">Normal</option>
+                <option value="0">Alle</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:12px;color:var(--text-sec);display:block;margin-bottom:4px">Zeitraum</label>
+              <select id="wcl-weeks" style="width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px">
+                <option value="1">Letzte Woche</option>
+                <option value="2">Letzte 2 Wochen</option>
+                <option value="4" selected>Letzte 4 Wochen</option>
+                <option value="8">Letzte 8 Wochen</option>
+                <option value="52">Letzte 12 Monate</option>
+              </select>
+            </div>
+            <div style="flex:0;display:flex;align-items:flex-end">
+              <button class="btn btn-primary" onclick="wclImportGuild()" style="white-space:nowrap;padding:8px 16px">&#9654; Import</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report URL (secondary) -->
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:10px">&#128196; Report-Import (einzeln)</div>
+        <div style="display:flex;gap:8px">
+          <input id="wcl-url" type="text" placeholder="https://www.warcraftlogs.com/reports/ABC123..." style="flex:1;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-pri);font-size:13px" onkeydown="if(event.key==='Enter')wclImportReport()">
+          <button class="btn" onclick="wclImportReport()">&#9654; Import</button>
+        </div>
+      </div>
+
+      <div id="wcl-status" style="font-size:12px;color:var(--text-sec);min-height:18px"></div>
+      <div style="font-size:11px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:8px;line-height:1.6">
+        API Client: <a href="https://www.warcraftlogs.com/api/clients/" target="_blank" style="color:var(--gold)">warcraftlogs.com/api/clients</a> &nbsp;·&nbsp;
+        Über HTTP öffnen: <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;font-family:var(--font-mono)">python3 -m http.server 8080</code>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="view-settings" class="view">
   <div class="settings-section">
     <h3>&#9881; Defensive Cooldowns</h3>
@@ -986,13 +1089,22 @@ function escHtml(s) {
 const _tabScrollPos = {};
 let _currentTab = 'live';
 function switchTab(tab) {
+  if (tab === 'wcl') {
+    const c = wclGetCreds();
+    const idEl = document.getElementById('wcl-client-id');
+    const secEl = document.getElementById('wcl-client-secret');
+    if (idEl && c.id) idEl.value = c.id;
+    if (secEl && c.secret) secEl.value = c.secret;
+    // Clear stale OAuth token on tab open
+    localStorage.removeItem('wow_wcl_token');
+  }
   // Save current scroll position
   _tabScrollPos[_currentTab] = window.scrollY;
   _currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['live','analysis','perf','apl','settings'][i]===tab);
+    b.classList.toggle('active', ['live','analysis','perf','apl','settings','wcl'][i]===tab);
   });
-  ['live','analysis','perf','apl','settings'].forEach(t => {
+  ['live','analysis','perf','apl','settings','wcl'].forEach(t => {
     const el = document.getElementById('view-'+t);
     if (el) el.classList.toggle('active', t===tab);
   });
@@ -1299,6 +1411,7 @@ function showLiveDeathContext(pullNum,deathIdx) {
 
 // ── ANALYSIS MODE ────────────────────────────────────────────────
 let analysisFileMeta=[],analysisPulls=[];
+let _wclMultiSource = false; // true when WCL import has multiple reports
 let selectedPullNum=null,selectedDeathIdx=null,selectedPlayer=null,selectedCause=null;
 
 // Cross-tab sync: shared pull + player selection
@@ -1344,7 +1457,7 @@ async function handleAnalysisFiles(evt) {
   evt.target.value=''; rebuildAnalysis();
 }
 function clearAnalysis(){
-  analysisFileMeta=[];analysisPulls=[];selectedPullNum=null;selectedDeathIdx=null;selectedPlayer=null;selectedCause=null;Object.keys(_playerColorCache).forEach(k=>delete _playerColorCache[k]);
+  analysisFileMeta=[];analysisPulls=[];_wclMultiSource=false;selectedPullNum=null;selectedDeathIdx=null;selectedPlayer=null;selectedCause=null;Object.keys(_playerColorCache).forEach(k=>delete _playerColorCache[k]);
   document.getElementById('analysis-files-list').innerHTML='';
   document.getElementById('boss-filter').innerHTML='<option value="">-- All Bosses --</option>';
   document.getElementById('an-pull-detail').style.display='none';
@@ -1414,8 +1527,8 @@ function isBossAbilityEnabled(spell) {
   return _MIDNIGHT_ENABLED.has(spell);
 }
 function saveBossAbilities(){try{localStorage.setItem('wow_boss_abilities',JSON.stringify(_bossAbilityEnabled));}catch(e){}}
-const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Termination Prism','Iris of Oblivion']);
-const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Terminate','Dark Quasar']);
+const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Iris of Oblivion']);
+const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Termination Prism','Terminate','Dark Quasar']);
 function loadBossAbilities(){
   try{const s=localStorage.getItem('wow_boss_abilities');if(s){_bossAbilityEnabled=JSON.parse(s);return;}}catch(e){}
   // No saved prefs — apply Midnight Falls defaults
@@ -2020,9 +2133,12 @@ function renderAnalysis(pulls,deathLimit=0){
     // Build bars with file separators
     const items = []; // mix of bars and separators
     let lastSrcFile = null;
+    // DEBUG: log separator state
+    console.log('[SEP] _wclMultiSource:', _wclMultiSource, 'analysisFileMeta.length:', analysisFileMeta.length);
+    console.log('[SEP] unique sourceFiles:', [...new Set(pulls.map(p=>p.sourceFile))]);
     pulls.forEach(p=>{
       // File separator: vertical divider + date label
-      if (analysisFileMeta.length > 1 && p.sourceFile !== lastSrcFile) {
+      if ((analysisFileMeta.length > 1 || _wclMultiSource) && p.sourceFile !== lastSrcFile) {
         lastSrcFile = p.sourceFile;
         const dateStr = p.startTime
           ? new Date(p.startTime).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})
@@ -2071,8 +2187,8 @@ function renderAnalysis(pulls,deathLimit=0){
     const _rev = [...pulls].reverse();
     let _lastFile = null; const _rows = [];
     for (const p of _rev) {
-      if (analysisFileMeta.length > 1 && p.sourceFile !== _lastFile) {
-        const _fd = p.startTime ? (d=>{const _d=new Date(d);return String(_d.getUTCDate()).padStart(2,'0')+'/'+String(_d.getUTCMonth()+1).padStart(2,'0')+' '+String(_d.getUTCHours()).padStart(2,'0')+':'+String(_d.getUTCMinutes()).padStart(2,'0');})(p.startTime) : '';
+      if ((analysisFileMeta.length > 1 || _wclMultiSource) && p.sourceFile !== _lastFile) {
+        const _fd = p.startTime ? (d=>{const _d=new Date(d);const _w=!!p._wclMeta;return String(_w?_d.getDate():_d.getUTCDate()).padStart(2,'0')+'/'+String((_w?_d.getMonth():_d.getUTCMonth())+1).padStart(2,'0')+' '+String(_w?_d.getHours():_d.getUTCHours()).padStart(2,'0')+':'+String(_w?_d.getMinutes():_d.getUTCMinutes()).padStart(2,'0');})(p.startTime) : '';
         _rows.push('<div style="padding:3px 8px;font-size:10px;color:var(--text-dim);background:var(--bg-deep);border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">&#128196; '+escHtml(p.sourceFile)+(_fd?' <span style="opacity:0.6">'+_fd+'</span>':'')+'</div>');
         _lastFile = p.sourceFile;
       }
@@ -2161,7 +2277,16 @@ function showDeathContext(pullNum,deathIdx){
   const deathLimit=parseInt(document.getElementById('death-limit').value)||0;
   const vd=applyDeathLimit(pull.deaths,deathLimit);
   document.querySelectorAll('#detail-deaths-list .death-entry').forEach((el,i)=>el.classList.toggle('selected',i===deathIdx));
-  renderDeathContext(vd[deathIdx],pull,document.getElementById('death-context-area'));
+  const ctxEl=document.getElementById('death-context-area');
+  // For WCL pulls: fetch context on-demand, then render
+  if (pull._wclMeta && (!vd[deathIdx]?.context || vd[deathIdx].context.length===0)) {
+    ctxEl.innerHTML='<div style="padding:10px;color:var(--text-dim);font-size:13px">⏳ Lade Death-Recap...</div>';
+    wclLoadDeathContext(pull, deathIdx).then(() => {
+      renderDeathContext(vd[deathIdx],pull,ctxEl);
+    });
+  } else {
+    renderDeathContext(vd[deathIdx],pull,ctxEl);
+  }
 }
 
 function buildPullDetailHTML(pull,visDeaths,ctxFn){
@@ -2744,12 +2869,29 @@ function normalizeForMatch(s) {
 const WOW_CLASS_COLORS={'deathknight':'#C41E3A','demonhunter':'#A330C9','druid':'#FF7C0A','evoker':'#33937F','hunter':'#AAD372','mage':'#3FC7EB','monk':'#00FF98','paladin':'#F48CBA','priest':'#FFFFFF','rogue':'#FFF468','shaman':'#0070DD','warlock':'#8788EE','warrior':'#C69B3A'};
 function specToClass(k){return k?k.split('_')[0]:null;}
 const _playerColorCache={};
+// Map WCL subType names to our class keys
+const WCL_CLASS_MAP = {
+  'DeathKnight':'deathknight','DemonHunter':'demonhunter','Druid':'druid',
+  'Evoker':'evoker','Hunter':'hunter','Mage':'mage','Monk':'monk',
+  'Paladin':'paladin','Priest':'priest','Rogue':'rogue','Shaman':'shaman',
+  'Warlock':'warlock','Warrior':'warrior'
+};
+
 function getPlayerClassColor(pull,name){
   if(!name)return null;
   const shortName=name.split('-')[0];
   if(_playerColorCache[shortName])return _playerColorCache[shortName];
+  // Fast path: check players list (from WCL import with subType)
   const pullsToSearch=pull?[pull,...analysisPulls.filter(p=>p!==pull)]:analysisPulls;
   for(const p of pullsToSearch){
+    if(p.players){
+      const pl=p.players.find(pl=>pl.name.split('-')[0]===shortName);
+      if(pl&&pl.class){
+        const classKey=WCL_CLASS_MAP[pl.class]||pl.class.toLowerCase();
+        const color=WOW_CLASS_COLORS[classKey]||null;
+        if(color){_playerColorCache[shortName]=color;return color;}
+      }
+    }
     if(!p||!p.playerCasts||!p.playerCasts.length)continue;
     const spec=detectPlayerSpec(p,shortName);
     if(spec){const color=WOW_CLASS_COLORS[specToClass(spec)]||null;if(color){_playerColorCache[shortName]=color;return color;}}
@@ -3401,11 +3543,15 @@ function _updateHeaderPullInfo(pull) {
   if (!panel || !bossEl || !metaEl) return;
   if (!pull) { panel.style.display='none'; return; }
   const dt = pull.startTime ? new Date(pull.startTime) : null;
-  const dateStr = dt ? String(dt.getUTCDate()).padStart(2,'0')+'/'+String(dt.getUTCMonth()+1).padStart(2,'0')+'/'+String(dt.getUTCFullYear()).slice(-2) : '';
-  // WoW log timestamps are local server time — display without TZ conversion
-const _h = dt ? String(dt.getUTCHours()).padStart(2,'0') : '';
-const _m = dt ? String(dt.getUTCMinutes()).padStart(2,'0') : '';
-const timeStr = _h ? _h+':'+_m : '';
+  // WCL timestamps are real UTC ms → use local time for display
+  // Local log timestamps are server-local stored as UTC → use getUTC* to avoid double-offset
+  const _isWCL = !!pull._wclMeta;
+  const dateStr = dt ? (_isWCL
+    ? String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getFullYear()).slice(-2)
+    : String(dt.getUTCDate()).padStart(2,'0')+'/'+String(dt.getUTCMonth()+1).padStart(2,'0')+'/'+String(dt.getUTCFullYear()).slice(-2)) : '';
+  const _h = dt ? (_isWCL ? String(dt.getHours()) : String(dt.getUTCHours())).padStart(2,'0') : '';
+  const _m = dt ? (_isWCL ? String(dt.getMinutes()) : String(dt.getUTCMinutes())).padStart(2,'0') : '';
+  const timeStr = _h ? _h+':'+_m : '';
   bossEl.textContent = pull.bossName || '';
   const _parts = [dateStr, timeStr, 'Pull #'+pull.num].filter(Boolean);
   metaEl.textContent = _parts.length ? '  —  ' + _parts.join('  —  ') : '';
@@ -3627,6 +3773,624 @@ function spellLink(name, cssClass, spellId) {
 }
 
 
+
+// ── WCL INTEGRATION ──────────────────────────────────────────────────────────
+
+// WCL credentials (stored in localStorage)
+function wclGetCreds() {
+  try { return JSON.parse(localStorage.getItem('wow_wcl_creds')||'{}'); } catch(e) { return {}; }
+}
+function wclSaveCreds(id, secret) {
+  localStorage.setItem('wow_wcl_creds', JSON.stringify({id, secret}));
+}
+function wclGetApiKey() {
+  return localStorage.getItem('wow_wcl_apikey')||'';
+}
+
+// Extract report code from URL or direct code
+function wclExtractCode(input) {
+  input = input.trim();
+  const m = input.match(/reports\/([a-zA-Z0-9]+)/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9]+$/.test(input)) return input;
+  return null;
+}
+
+// WCL v2 API (GraphQL) with OAuth2 client_credentials
+async function wclGetToken() {
+  const creds = wclGetCreds();
+  if (!creds.id || !creds.secret) throw new Error('WCL Client ID / Secret fehlt');
+  const cached = JSON.parse(localStorage.getItem('wow_wcl_token')||'{}');
+  if (cached.token && cached.expires > Date.now()) return cached.token;
+
+  // Try both OAuth variants (WCL docs are inconsistent)
+  const attempts = [
+    // Variant 1: Basic Auth header only
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(creds.id + ':' + creds.secret)
+      },
+      body: 'grant_type=client_credentials'
+    },
+    // Variant 2: Credentials in body only
+    {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type:'client_credentials', client_id:creds.id, client_secret:creds.secret }).toString()
+    },
+    // Variant 3: Both Basic Auth AND credentials in body
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(creds.id + ':' + creds.secret)
+      },
+      body: new URLSearchParams({ grant_type:'client_credentials', client_id:creds.id, client_secret:creds.secret }).toString()
+    },
+  ];
+
+  let lastError = '';
+  for (const attempt of attempts) {
+    const resp = await fetch('https://www.warcraftlogs.com/oauth/token', {
+      method: 'POST',
+      headers: attempt.headers,
+      body: attempt.body
+    });
+    const body = await resp.text();
+    if (resp.ok) {
+      const data = JSON.parse(body);
+      localStorage.setItem('wow_wcl_token', JSON.stringify({
+        token: data.access_token,
+        expires: Date.now() + (data.expires_in - 60) * 1000
+      }));
+      return data.access_token;
+    }
+    lastError = `${resp.status}: ${body.slice(0,200)}`;
+    console.warn('[WCL] OAuth attempt failed:', lastError);
+  }
+  throw new Error('OAuth fehlgeschlagen: ' + lastError);
+}
+
+async function wclGQL(query, variables={}) {
+  const token = await wclGetToken();
+  const resp = await fetch('https://www.warcraftlogs.com/api/v2/client', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ query, variables })
+  });
+  if (!resp.ok) throw new Error(`WCL API ${resp.status}`);
+  const data = await resp.json();
+  if (data.errors) throw new Error(data.errors.map(e=>e.message).join('; '));
+  return data.data;
+}
+
+
+
+// Fetch all fights for a report
+async function wclGetFights(code) {
+  const d = await wclGQL(`query($code:String!){
+    reportData{report(code:$code){
+      title startTime endTime
+      fights(killType:Encounters){id name startTime endTime kill encounterID difficulty}
+      masterData{actors{id name type subType}}
+    }}
+  }`, {code});
+  const r = d.reportData.report;
+  r.fights = (r.fights||[]).filter(f=>f.encounterID>0);
+  return r;
+}
+
+async function wclGetEvents(code, fightId, startTime, endTime, dataType, hostility=null) {
+  // hostility: 'Friendlies' | 'Enemies' | null
+  let events=[], start=startTime;
+  while(true){
+    const hArg = hostility ? `,hostilityType:${hostility}` : '';
+    const query = `query($c:String!,$fid:Int!,$s:Float!,$e:Float!,$dt:EventDataType!){
+      reportData{report(code:$c){
+        events(fightIDs:[$fid],startTime:$s,endTime:$e,dataType:$dt,limit:10000${hArg}){
+          data nextPageTimestamp
+        }
+      }}
+    }`;
+    const d = await wclGQL(query, {c:code,fid:fightId,s:start,e:endTime,dt:dataType});
+    const ev = d.reportData.report.events;
+    events = events.concat(ev.data||[]);
+    if(ev.nextPageTimestamp && ev.nextPageTimestamp<endTime) start=ev.nextPageTimestamp;
+    else break;
+  }
+  return events;
+}
+
+// Fetch death context for a specific death event (WCL)
+async function wclFetchDeathContext(code, fightId, deathOffsetMs, fightStartTime, reportStartTime) {
+  const deathTs = reportStartTime + fightStartTime + deathOffsetMs;
+  const windowMs = 6000;
+  const startTs = Math.max(fightStartTime, deathTs - windowMs - reportStartTime);
+  const endTs = deathTs - reportStartTime + 500; // small buffer after death
+
+  try {
+    const [dmgEvs, healEvs] = await Promise.all([
+      wclGetEvents(code, fightId, startTs, endTs, 'DamageTaken', 'Friendlies', {includeResources:true}),
+      wclGetEvents(code, fightId, startTs, endTs, 'Healing', 'Friendlies', {includeResources:true}),
+    ]);
+
+    // Collect all unique ability IDs for name lookup
+    const allIds = [...dmgEvs, ...healEvs].map(e => e.abilityGameID).filter(Boolean);
+    await wclFetchSpellNames(allIds);
+
+    const ctx = [];
+    for (const ev of dmgEvs) {
+      const spell = ev.ability?.name || _wclSpellCache[ev.abilityGameID] || '';
+      ctx.push({
+        ts: reportStartTime + ev.timestamp,
+        type: 'dmg',
+        spell,
+        spellId: String(ev.abilityGameID || ''),
+        amount: ev.amount || 0,
+        currentHP: ev.hitPoints || 0,
+        maxHP: ev.maxHitPoints || 0,
+        srcName: ev.sourceName || ''
+      });
+    }
+    for (const ev of healEvs) {
+      const spell = ev.ability?.name || _wclSpellCache[ev.abilityGameID] || '';
+      ctx.push({
+        ts: reportStartTime + ev.timestamp,
+        type: 'heal',
+        spell,
+        spellId: String(ev.abilityGameID || ''),
+        amount: (ev.amount || 0) + (ev.absorbed || 0),
+        currentHP: ev.hitPoints || 0,
+        maxHP: ev.maxHitPoints || 0,
+        srcName: ev.sourceName || ''
+      });
+    }
+    return ctx;
+  } catch(e) {
+    console.warn('[WCL] Death context fetch failed:', e.message);
+    return [];
+  }
+}
+
+// Cache: pull+deathIdx → context (avoid re-fetching)
+const _wclDeathContextCache = {};
+
+// Called when user clicks a death in the death recap UI
+async function wclLoadDeathContext(pull, deathIdx) {
+  if (!pull._wclMeta) return; // not a WCL pull
+  const death = pull.deaths[deathIdx];
+  if (!death || death.context?.length > 0) return; // already loaded
+
+  const cacheKey = `${pull._wclMeta.code}-${pull._wclMeta.fightId}-${deathIdx}`;
+  if (_wclDeathContextCache[cacheKey]) {
+    death.context = _wclDeathContextCache[cacheKey];
+    return;
+  }
+
+  const ctx = await wclFetchDeathContext(
+    pull._wclMeta.code, pull._wclMeta.fightId,
+    death.offsetMs, pull._wclMeta.fightStart, pull._wclMeta.reportStart
+  );
+  death.context = ctx;
+  _wclDeathContextCache[cacheKey] = ctx;
+}
+
+// Cache for spell names fetched from WCL
+const _wclSpellCache = {};
+
+async function wclFetchSpellNames(abilityIds) {
+  const toFetch = [...new Set(abilityIds)].filter(id => id && id > 0 && !_wclSpellCache[id]);
+  if (!toFetch.length) return;
+
+  // Batch in chunks of 50 (GraphQL alias approach)
+  for (let i = 0; i < toFetch.length; i += 50) {
+    const chunk = toFetch.slice(i, i + 50);
+    const aliases = chunk.map(id => `a${id}: ability(id:${id}){name}`).join(' ');
+    try {
+      const d = await wclGQL(`{ gameData { ${aliases} } }`);
+      for (const id of chunk) {
+        const name = d?.gameData?.[`a${id}`]?.name;
+        if (name) _wclSpellCache[id] = name;
+      }
+    } catch(e) {
+      console.warn('[WCL] Spell name fetch failed:', e.message);
+    }
+  }
+}
+
+function wclBuildActorMap(masterData) {
+  const map = {};
+  for(const a of (masterData?.actors||[])){
+    // type: 'Player','Pet','NPC','Boss'  subType: class name
+    map[a.id] = a;
+  }
+  return map;
+}
+
+// Convert WCL fight+events → our internal pull format
+function wclMapToPull(fight, castEvents, deathEvents, combatantEvents, actorMap, reportStartTime, pullNum, raidSetRef, defMapRef, offSetRef) {
+  const fightStart = fight.startTime;
+  const fightEnd = fight.endTime;
+  const pullDurMs = fightEnd - fightStart;
+
+  // WCL v2 field format (with useActorIDs:false):
+  // - sourceIsFriendly: bool (present when useActorIDs:false)
+  // - sourceName/targetName: string names
+  // - ability: {name, guid} — only present with useActorIDs:false
+  // - abilityGameID: numeric spell ID (always present)
+  // - timestamps: relative to report startTime
+  // - deaths: targetID=victim, killingAbilityGameID=killing spell ID
+
+  const getSpell = (ev) => {
+    const id = ev.ability?.guid || ev.abilityGameID || 0;
+    const name = ev.ability?.name || _wclSpellCache[id] || '';
+    return { name, id: String(id) };
+  };
+
+  const isFriendly = (ev) => {
+    if (ev.sourceIsFriendly != null) return ev.sourceIsFriendly;
+    return actorMap[ev.sourceID]?.type === 'Player';
+  };
+
+  const getSourceName = (ev) => ev.sourceName || actorMap[ev.sourceID]?.name || '';
+  const getTargetName = (ev) => ev.targetName || actorMap[ev.targetID]?.name || '';
+
+  // Player casts + raid CDs
+  const playerCasts = [], raidCDs = [];
+  for (const ev of castEvents) {
+    if (ev.fake) continue;
+    if (!isFriendly(ev)) continue;
+    const actor = actorMap[ev.sourceID];
+    if (actor && actor.type !== 'Player') continue;
+    const name = getSourceName(ev);
+    if (!name) continue;
+    const offsetMs = ev.timestamp - fightStart;
+    const { name: spell, id: spellId } = getSpell(ev);
+    const cls = actor?.subType || '';
+    playerCasts.push({ offsetMs, playerName: name, spell, spellId, class: cls });
+    if (spell) {
+      const idRole = spellId ? SPELL_ID_ROLE.get(parseInt(spellId)) : null;
+      const isRaid = idRole === 'raid' || (!idRole && raidSetRef.has(spell));
+      if (isRaid) {
+        const isDup = raidCDs.some(r => r.spell===spell && r.caster===name && Math.abs(r.offsetMs-offsetMs)<2000);
+        if (!isDup) raidCDs.push({ offsetMs, caster: name, spell, spellId });
+      }
+    }
+  }
+
+  // Boss casts
+  const bossCasts = [];
+  for (const ev of castEvents) {
+    if (ev.fake) continue;
+    if (isFriendly(ev)) continue;
+    const actor = actorMap[ev.sourceID];
+    if (actor?.type === 'Player') continue;
+    const offsetMs = ev.timestamp - fightStart;
+    const { name: spell, id: spellId } = getSpell(ev);
+    bossCasts.push({ offsetMs, bossName: getSourceName(ev) || actor?.name || 'Boss', spell, spellId });
+  }
+
+  // Deaths — killingAbilityGameID is the spell ID, look up name from cache
+  const deaths = [];
+  for (const ev of deathEvents) {
+    const actor = actorMap[ev.targetID];
+    if (actor && actor.type !== 'Player') continue;
+    const name = getTargetName(ev);
+    if (!name) continue;
+    const killingId = ev.killingAbilityGameID || ev.ability?.guid || 0;
+    const cause = ev.ability?.name || _wclSpellCache[killingId] || '';
+    deaths.push({
+      offsetMs: ev.timestamp - fightStart,
+      name,
+      cause,
+      causeId: String(killingId),
+      context: []
+    });
+  }
+
+  // Build spec→class map from CombatantInfo events
+  // CombatantInfo has specID which maps to a class
+  const specClassMap = {}; // sourceID → class string from subType
+  for (const ev of (combatantEvents||[])) {
+    const actor = actorMap[ev.sourceID];
+    if (actor?.type === 'Player') {
+      specClassMap[actor.name] = actor.subType || '';
+    }
+  }
+
+  // Players list for class colors
+  const playersMap = {};
+  for (const c of playerCasts) {
+    if (!playersMap[c.playerName])
+      playersMap[c.playerName] = { name: c.playerName, class: specClassMap[c.playerName] || c.class || '' };
+  }
+  for (const actor of Object.values(actorMap)) {
+    if (actor.type === 'Player' && !playersMap[actor.name])
+      playersMap[actor.name] = { name: actor.name, class: actor.subType||'' };
+  }
+
+  return {
+    num: pullNum,
+    startTime: reportStartTime + fightStart,
+    endTime: reportStartTime + fightEnd,
+    bossName: fight.name,
+    _wclMeta: null, // set after return by caller with {code, fightId, fightStart, reportStart}
+    success: fight.kill,
+    pullDurMs,
+    playerCasts,
+    raidCDs,
+    bossCasts,
+    deaths,
+    players: Object.values(playersMap),
+    events: []
+  };
+}
+
+// Main WCL import function
+async function wclImportReport() {
+
+  const statusEl = document.getElementById('wcl-status');
+  const urlInput = document.getElementById('wcl-url');
+  const code = wclExtractCode(urlInput?.value || '');
+  if (!code) { if(statusEl) statusEl.textContent = 'Ungültige Report-URL'; return; }
+
+  const setStatus = (msg, isError=false) => {
+    if (statusEl) { statusEl.textContent = msg; statusEl.style.color = isError ? '#e05050' : 'var(--text-sec)'; }
+    console.log('[WCL]', msg);
+  };
+
+  try {
+    setStatus('Verbinde mit WarcraftLogs...');
+    const report = await wclGetFights(code);
+    const actorMap = wclBuildActorMap(report.masterData);
+    const fights = report.fights || [];
+    if (!fights.length) { setStatus('Keine Boss-Fights gefunden', true); return; }
+
+    setStatus(`${fights.length} Pulls gefunden — lade Events...`);
+
+    const raidSet = getRaidCDSet();
+    const defMap = getCooldownMap();
+    const offSet = new Set(userOffCDs);
+
+    const pulls = [];
+    for (let i = 0; i < fights.length; i++) {
+      const fight = fights[i];
+      setStatus(`Lade Pull ${i+1}/${fights.length}: ${fight.name}...`);
+
+      const [friendlyCasts, enemyCasts, deathEvs, combatantEvs] = await Promise.all([
+        wclGetEvents(code, fight.id, fight.startTime, fight.endTime, 'Casts', 'Friendlies'),
+        wclGetEvents(code, fight.id, fight.startTime, fight.endTime, 'Casts', 'Enemies'),
+        wclGetEvents(code, fight.id, fight.startTime, fight.endTime, 'Deaths'),
+        wclGetEvents(code, fight.id, fight.startTime, fight.endTime, 'CombatantInfo')
+      ]);
+      const castEvs = [...friendlyCasts.map(e=>({...e,_friendly:true})),
+                       ...enemyCasts.map(e=>({...e,_friendly:false}))];
+
+      // Resolve spell names from gameData
+      const _allIds = [...castEvs.map(e=>e.abilityGameID), ...deathEvs.map(e=>e.killingAbilityGameID)].filter(Boolean);
+      await wclFetchSpellNames(_allIds);
+      const pull = wclMapToPull(fight, castEvs, deathEvs, combatantEvs, actorMap, report.startTime, i+1, raidSet, defMap, offSet);
+      const _rDate = report.startTime ? new Date(report.startTime).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) : '';
+      pull.sourceFile = (report.title || code) + (_rDate ? ' ('+_rDate+')' : '');
+      pull._wclMeta = { code, fightId: fight.id, fightStart: fight.startTime, reportStart: report.startTime };
+      pulls.push(pull);
+    }
+
+    // Load into analysis tab
+    // Sort pulls oldest first (WCL returns reports newest first)
+    pulls.sort((a,b) => a.startTime - b.startTime);
+    // Re-number after sort
+    pulls.forEach((p,i) => p.num = i+1);
+    analysisPulls = pulls;
+    // Enable file separators if multiple reports
+    _wclMultiSource = new Set(pulls.map(p=>p.sourceFile)).size > 1;
+    selectedPullNum = null;
+    renderAnalysis(analysisPulls);
+    renderBossAbilitySettings();
+    setStatus(`✓ ${pulls.length} Pulls geladen — ${report.title}`);
+
+    // Switch to analysis tab
+    switchTab('analysis');
+
+  } catch(e) {
+    setStatus('Fehler: ' + e.message, true);
+    console.error('[WCL]', e);
+  }
+}
+
+// ── WCL GUILD FLOW ──────────────────────────────────────────────────────────
+
+async function wclSearchGuild(name, serverSlug, serverRegion) {
+  const d = await wclGQL(`query($name:String!,$slug:String!,$region:String!){
+    guildData{guild(name:$name,serverSlug:$slug,serverRegion:$region){
+      id name server{name}
+      zoneRankings{bestPerformanceAverage}
+    }}
+  }`, {name, slug: serverSlug, region: serverRegion});
+  return d.guildData.guild;
+}
+
+async function wclGetZones() {
+  const d = await wclGQL(`{worldData{zones{id name encounters{id name}}}}`);
+  return d.worldData.zones;
+}
+
+async function wclGetGuildReports(guildName, serverSlug, serverRegion, zoneId, encounterID, weeks) {
+  // Get reports for guild in date range
+  const startTime = Date.now() - weeks * 7 * 24 * 3600 * 1000;
+  const d = await wclGQL(`
+    query($name:String!,$slug:String!,$region:String!,$zone:Int,$start:Float){
+      reportData{reports(guildName:$name,guildServerSlug:$slug,guildServerRegion:$region,
+                         zoneID:$zone,startTime:$start,limit:50){
+        data{code title startTime endTime}
+      }}
+    }`, {name:guildName, slug:serverSlug, region:serverRegion, zone:zoneId, start:startTime});
+  return d.reportData.reports.data || [];
+}
+
+// Main guild import UI functions
+async function wclLoadZones() {
+  const statusEl = document.getElementById('wcl-status');
+  const guildName   = document.getElementById('wcl-guild')?.value?.trim();
+  const serverSlug  = document.getElementById('wcl-server')?.value?.trim().toLowerCase().replace(/\s+/g,'-');
+  const serverRegion= document.getElementById('wcl-region')?.value || 'eu';
+
+  if (!guildName || !serverSlug) {
+    statusEl.textContent = 'Bitte Gildenname und Server eingeben';
+    statusEl.style.color = '#e05050';
+    return;
+  }
+  window._wclGuild = {guildName, serverSlug, serverRegion};
+
+  statusEl.textContent = `Lade Reports für "${guildName}" (${serverSlug}-${serverRegion})...`;
+  statusEl.style.color = 'var(--text-sec)';
+
+  try {
+    // Fetch last 4 months of reports for this guild
+    const startTime = Date.now() - 16 * 7 * 24 * 3600 * 1000; // 16 weeks
+    const d = await wclGQL(`
+      query($name:String!,$slug:String!,$region:String!,$start:Float){
+        reportData{reports(guildName:$name,guildServerSlug:$slug,guildServerRegion:$region,
+                           startTime:$start,limit:50){
+          data{code title startTime endTime zone{id name encounters{id name}}}
+        }}
+      }`, {name:guildName, slug:serverSlug, region:serverRegion, start:startTime});
+
+    const reports = d.reportData.reports.data || [];
+    if (!reports.length) { statusEl.textContent = 'Keine Reports gefunden'; statusEl.style.color='#e05050'; return; }
+
+    // Aggregate zones+encounters seen in these reports
+    const zoneMap = {}; // zoneId -> {id, name, encounters:{id->name}}
+    for (const rep of reports) {
+      if (!rep.zone) continue;
+      const z = rep.zone;
+      if (!zoneMap[z.id]) zoneMap[z.id] = {id:z.id, name:z.name, encounters:{}};
+      for (const enc of (z.encounters||[])) {
+        zoneMap[z.id].encounters[enc.id] = enc.name;
+      }
+    }
+
+    const zones = Object.values(zoneMap);
+    window._wclZones = zones;
+    window._wclReports = reports;
+
+    const zoneEl = document.getElementById('wcl-zone');
+    zoneEl.innerHTML = '<option value="">Zone wählen...</option>' +
+      zones.map(z=>`<option value="${z.id}">${z.name}</option>`).join('');
+    zoneEl.disabled = false;
+    document.getElementById('wcl-encounter').innerHTML = '<option value="">— erst Zone wählen —</option>';
+    document.getElementById('wcl-encounter').disabled = true;
+
+    statusEl.textContent = `✓ ${reports.length} Reports · ${zones.length} Zonen gefunden`;
+    statusEl.style.color = 'var(--text-sec)';
+  } catch(e) {
+    statusEl.textContent = 'Fehler: ' + e.message;
+    statusEl.style.color = '#e05050';
+    console.error('[WCL]', e);
+  }
+}
+
+function wclOnZoneChange() {
+  const zoneId = document.getElementById('wcl-zone')?.value;
+  const encounterEl = document.getElementById('wcl-encounter');
+  if (!encounterEl || !zoneId || !window._wclZones) return;
+  const zone = window._wclZones.find(z=>String(z.id)===String(zoneId));
+  if (!zone) return;
+  // encounters is now an object {id: name}
+  const encs = Object.entries(zone.encounters||{});
+  encounterEl.innerHTML = '<option value="">Boss wählen...</option>' +
+    encs.map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+  encounterEl.disabled = false;
+}
+
+async function wclImportGuild() {
+  const statusEl = document.getElementById('wcl-status');
+  const guildInput = document.getElementById('wcl-guild')?.value?.trim();
+  const zoneId = parseInt(document.getElementById('wcl-zone')?.value);
+  const encId = parseInt(document.getElementById('wcl-encounter')?.value);
+  const weeks = parseInt(document.getElementById('wcl-weeks')?.value) || 4;
+  const difficulty = parseInt(document.getElementById('wcl-difficulty')?.value) || 5; // 5=Mythic
+
+  if (!guildInput || !zoneId || !encId) {
+    statusEl.textContent = 'Bitte Gilde, Zone und Boss auswählen';
+    statusEl.style.color = '#e05050';
+    return;
+  }
+
+  // Use already-parsed guild from wclLoadZones
+  const _g = window._wclGuild || {};
+  let guildName = _g.guildName, serverSlug = _g.serverSlug, serverRegion = _g.serverRegion;
+  if (!guildName) { setStatus('Bitte erst Gilde laden', true); return; }
+
+  const setStatus = (msg, err=false) => {
+    statusEl.textContent = msg;
+    statusEl.style.color = err ? '#e05050' : 'var(--text-sec)';
+    console.log('[WCL]', msg);
+  };
+
+  try {
+    setStatus(`Suche Reports für "${guildName}" auf ${serverSlug}-${serverRegion}...`);
+    // Use cached reports from wclLoadZones, filter by zone and weeks
+    const cutoff = Date.now() - weeks * 7 * 24 * 3600 * 1000;
+    const allReports = window._wclReports || [];
+    const reports = allReports.filter(r =>
+      (!zoneId || r.zone?.id === zoneId) && r.startTime >= cutoff
+    );
+    if (!reports.length) { setStatus('Keine Reports im gewählten Zeitraum', true); return; }
+    setStatus(`${reports.length} Reports gefunden — analysiere Fights...`);
+
+    const raidSet = getRaidCDSet();
+    const defMap = getCooldownMap();
+    const offSet = new Set(userOffCDs);
+    const pulls = [];
+    let pullNum = 0;
+
+    for (let ri = 0; ri < reports.length; ri++) {
+      const rep = reports[ri];
+      setStatus(`Report ${ri+1}/${reports.length}: ${rep.title}...`);
+      const report = await wclGetFights(rep.code);
+      const actorMap = wclBuildActorMap(report.masterData);
+      // Filter to selected encounter and difficulty
+      const fights = (report.fights||[]).filter(f =>
+        f.encounterID === encId && (!difficulty || f.difficulty === difficulty)
+      );
+      for (let fi = 0; fi < fights.length; fi++) {
+        const fight = fights[fi];
+        setStatus(`Report ${ri+1}/${reports.length}, Pull ${fi+1}/${fights.length}: ${fight.name}...`);
+        const [friendlyCasts2, enemyCasts2, deathEvs, combatantEvs2] = await Promise.all([
+          wclGetEvents(rep.code, fight.id, fight.startTime, fight.endTime, 'Casts', 'Friendlies'),
+          wclGetEvents(rep.code, fight.id, fight.startTime, fight.endTime, 'Casts', 'Enemies'),
+          wclGetEvents(rep.code, fight.id, fight.startTime, fight.endTime, 'Deaths'),
+          wclGetEvents(rep.code, fight.id, fight.startTime, fight.endTime, 'CombatantInfo')
+        ]);
+        const castEvs = [...friendlyCasts2.map(e=>({...e,_friendly:true})),
+                         ...enemyCasts2.map(e=>({...e,_friendly:false}))];
+        const _allIds2 = [...castEvs.map(e=>e.abilityGameID), ...deathEvs.map(e=>e.killingAbilityGameID)].filter(Boolean);
+        await wclFetchSpellNames(_allIds2);
+        const pull = wclMapToPull(fight, castEvs, deathEvs, combatantEvs2, actorMap, report.startTime, ++pullNum, raidSet, defMap, offSet);
+        const _repDate = rep.startTime ? new Date(rep.startTime).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) : '';
+        pull.sourceFile = (rep.title || rep.code) + (_repDate ? ' ('+_repDate+')' : '');
+        pull._wclMeta = { code: rep.code, fightId: fight.id, fightStart: fight.startTime, reportStart: report.startTime };
+        pulls.push(pull);
+      }
+    }
+
+    // Sort pulls oldest first (WCL returns reports newest first)
+    pulls.sort((a,b) => a.startTime - b.startTime);
+    // Re-number after sort
+    pulls.forEach((p,i) => p.num = i+1);
+    analysisPulls = pulls;
+    // Enable file separators if multiple reports
+    _wclMultiSource = new Set(pulls.map(p=>p.sourceFile)).size > 1;
+    selectedPullNum = null;
+    renderAnalysis(analysisPulls);
+    renderBossAbilitySettings();
+    setStatus(`✓ ${pulls.length} Pulls von ${reports.length} Reports geladen`);
+    switchTab('analysis');
+  } catch(e) {
+    setStatus('Fehler: ' + e.message, true);
+    console.error('[WCL]', e);
+  }
+}
 
 </script>
 </body>
