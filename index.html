@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v2.3</div>
+      <div class="logo-text">COMBATLOG PARSER v2.4</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -2173,11 +2173,19 @@ function renderAnalysis(pulls,deathLimit=0){
   const phaseWipeMap = {}; // phaseKey → count  (phaseKey = name)
   let hasPhases = false;
   for (const p of pulls) {
-    if (!p.success && p._phases && p._phases.length >= 1) {
-      hasPhases = true;
-      const lp = p._phases[p._phases.length-1];
-      const key = lp.name || (lp.isIntermission ? 'Intermission' : 'P'+lp.id);
-      phaseWipeMap[key] = (phaseWipeMap[key]||0) + 1;
+    if (!p.success) {
+      if (p._phases && p._phases.length > 1) {
+        // Pull reached beyond P1 — count by last phase
+        hasPhases = true;
+        const lp = p._phases[p._phases.length-1];
+        const key = lp.name || (lp.isIntermission ? 'Intermission' : 'P'+lp.id);
+        phaseWipeMap[key] = (phaseWipeMap[key]||0) + 1;
+      } else if (p.phaseTransitions !== undefined) {
+        // Pull has phase tracking but no transitions = P1 wipe
+        hasPhases = true;
+        const key = 'P1';
+        phaseWipeMap[key] = (phaseWipeMap[key]||0) + 1;
+      }
     }
   }
   const totalWipes = pulls.filter(p=>!p.success).length;
