@@ -173,7 +173,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="logo">
     <div class="logo-icon">&#9876;</div>
     <div>
-      <div class="logo-text">COMBATLOG PARSER v2.5</div>
+      <div class="logo-text">COMBATLOG PARSER v2.6</div>
       <div class="logo-sub">WoW Retail &middot; KSC</div>
     </div>
   </div>
@@ -184,7 +184,6 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div class="tabs">
     <button class="tab-btn" onclick="switchTab('live')">&#9889; Live</button>
     <button class="tab-btn active" onclick="switchTab('analysis')">&#128202; Analyze</button>
-    <button class="tab-btn" onclick="switchTab('perf')">&#128202; Performance</button>
     <button class="tab-btn" onclick="switchTab('settings')">&#9881; Settings</button>
     <button class="tab-btn" onclick="switchTab('wcl')">&#128279; WCL Import</button>
   </div>
@@ -329,23 +328,7 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
   <div id="an-pull-detail" style="display:none" class="detail-panel"></div>
 </div>
 
-<!-- PERFORMANCE -->
-<div id="view-perf" class="view">
-  <div class="section">
-    <div class="flex-gap" style="margin-bottom:14px">
-      <select class="boss-select" id="perf-pull-select" onchange="perfPullChanged()">
-        <option value="">&#8212; Pull w&#228;hlen &#8212;</option>
-      </select>
-      <select class="boss-select" id="perf-player-select" onchange="perfPlayerChanged()" style="min-width:160px">
-        <option value="">&#8212; Select Player &#8212;</option>
-      </select>
-    </div>
-    <div id="perf-result">
-      <div class="empty"><div class="empty-icon">&#128202;</div><p>Lade Logs im Analysis tab, dann hier Select Pull.</p></div>
-    </div>
-  </div>
-</div>
-<!-- SETTINGS -->
+<!-- WCL IMPORT -->
 <div id="view-wcl" class="view">
   <div class="card section">
     <div class="card-title">&#128279; WarcraftLogs Import</div>
@@ -450,6 +433,16 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
 </div>
 <div id="view-settings" class="view">
   <div class="settings-section">
+    <h3>&#128608; Boss Abilities</h3>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Select which boss abilities are shown in the CD Timeline and Raid CDs. Populated automatically when logs are loaded.</p>
+    <div id="boss-ability-list" style="margin-bottom:10px"><div style="font-size:12px;color:var(--text-dim)">Load logs to see boss abilities.</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="selectAllBossAbilities(true)">&#9745; Select All</button>
+      <button class="btn" onclick="selectAllBossAbilities(false)">&#9744; Deselect All</button>
+    </div>
+  </div>
+
+  <div class="settings-section">
     <h3>&#9881; Defensive Cooldowns</h3>
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px">Diese Spells werden im Death-Recap als CD markiert und im HP-Graphen angezeigt.</p>
     <div id="cd-list-major">
@@ -475,16 +468,6 @@ a.wh-spell.cause-link:hover{color:var(--gold)}
     </div>
     <div style="margin-top:10px;display:flex;gap:8px">
       <button class="btn" onclick="resetCooldowns()">&#8635; Restore Defaults</button>
-    </div>
-  </div>
-
-  <div class="settings-section">
-    <h3>&#128608; Boss Abilities</h3>
-    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">Select which boss abilities are shown in the CD Timeline and Raid CDs. Populated automatically when logs are loaded.</p>
-    <div id="boss-ability-list" style="max-height:200px;overflow-y:auto;margin-bottom:10px"><div style="font-size:12px;color:var(--text-dim)">Load logs to see boss abilities.</div></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" onclick="selectAllBossAbilities(true)">&#9745; Select All</button>
-      <button class="btn" onclick="selectAllBossAbilities(false)">&#9744; Deselect All</button>
     </div>
   </div>
 
@@ -750,15 +733,18 @@ function processLine(line) {
     }
   } else if (event === 'SPELL_AURA_APPLIED' || event === 'SPELL_AURA_APPLIED_DOSE') {
     const srcName = parts[2], srcGUID = parts[1], destGUID = parts[5], destName = parts[6], spellName = parts[10];
-    // Boss ability tracking (original location - catches all boss abilities)
-    if ((srcGUID.startsWith('Creature-') || srcGUID.startsWith('Vehicle-')) && currentPull && spellName) {
-      const srcFlags2 = parseInt(parts[3], 16) || 0;
-      const isHostile2 = (srcFlags2 & 0x40) !== 0;
-      if (isHostile2) {
-        const offs2 = timestamp - currentPull.startTime;
-        const bossNm2 = srcName.replace(/"/g,'');
-        if (bossNm2 && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offs2)<5000)) {
-          currentPull.bossCasts.push({ offsetMs: offs2, bossName: bossNm2, spell: spellName, spellId: parts[9] });
+    // Boss ability tracking: AURA_APPLIED fires once PER AFFECTED PLAYER, so for
+    // raid-wide debuffs (e.g. Total Eclipse hitting 20 players) this triggers 20x.
+    // The bossCasts.push call itself is deduped by spell+time below, so only the
+    // FIRST player's AURA_APPLIED for a given cast actually creates an entry —
+    // this still catches spells that have no matching CAST_SUCCESS/START at all.
+    if (event === 'SPELL_AURA_APPLIED' && (srcGUID.startsWith('Creature-') || srcGUID.startsWith('Vehicle-')) && currentPull && spellName) {
+      const srcFlagsA = parseInt(parts[3], 16) || 0;
+      if ((srcFlagsA & 0x40) !== 0) {
+        const offsA = timestamp - currentPull.startTime;
+        const bossNmA = srcName.replace(/"/g,'');
+        if (bossNmA && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offsA)<8000)) {
+          currentPull.bossCasts.push({ offsetMs: offsA, bossName: bossNmA, spell: spellName, spellId: parts[9] });
         }
       }
     }
@@ -804,14 +790,17 @@ function processLine(line) {
   } else if (event === 'SPELL_CAST_SUCCESS' || event === 'SPELL_CAST_START') {
     const srcGUID = parts[1], srcName = parts[2], srcFlags = parseInt(parts[3],16)||0, spellId = parts[9], spellName = parts[10];
     const isRealPlayer = srcGUID && srcGUID.startsWith('Player-');
-    // Boss ability casts — only hostile NPC units
+    // Boss ability casts: SPELL_CAST_SUCCESS fires exactly once per actual cast,
+    // regardless of how many players it affects — this is the single source of truth.
+    // SPELL_CAST_START is used ONLY for spells that have no matching SUCCESS event
+    // (some channeled/instant boss abilities only log START), guarded by spell-level dedup.
     if ((srcGUID.startsWith('Creature-') || srcGUID.startsWith('Vehicle-')) && currentPull && spellName) {
       const isHostile = (srcFlags & 0x40) !== 0;
       if (isHostile) {
         const offs2 = timestamp - currentPull.startTime;
-        const bossNm2 = srcName.replace(/"/g,'');
-        if (bossNm2 && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offs2)<5000)) {
-          currentPull.bossCasts.push({ offsetMs: offs2, bossName: bossNm2, spell: spellName, spellId });
+        const bossNm3 = srcName.replace(/"/g,'');
+        if (bossNm3 && !currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-offs2)<8000)) {
+          currentPull.bossCasts.push({ offsetMs: offs2, bossName: bossNm3, spell: spellName, spellId });
         }
         // Phase trigger check
         const _bossSpellId = parseInt(spellId);
@@ -1136,14 +1125,13 @@ function switchTab(tab) {
   _tabScrollPos[_currentTab] = window.scrollY;
   _currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['live','analysis','perf','apl','settings','wcl'][i]===tab);
+    b.classList.toggle('active', ['live','analysis','settings','wcl'][i]===tab);
   });
-  ['live','analysis','perf','apl','settings','wcl'].forEach(t => {
+  ['live','analysis','settings','wcl'].forEach(t => {
     const el = document.getElementById('view-'+t);
     if (el) el.classList.toggle('active', t===tab);
   });
   if (tab==='settings') { renderSettings(); renderBossAbilitySettings(); }
-  if (tab==='perf') renderPerfTab();
   // Restore scroll position for this tab
   requestAnimationFrame(() => window.scrollTo(0, _tabScrollPos[tab] || 0));
 }
@@ -1305,13 +1293,14 @@ function deltaParseLines(lines) {
       }
     } else if(ev==='SPELL_AURA_APPLIED') {
       const dg=parts[5],sn=parts[10];
-      // Boss ability tracking via aura events
+      // Boss ability tracking: primary source. Fires once per affected player for
+      // raid-wide debuffs, but the dedup check below only lets the first one through.
       if(state.currentPull && parts[1] && (parts[1].startsWith('Creature-')||parts[1].startsWith('Vehicle-')) && sn) {
-        const _bFlags = parseInt(parts[3],16)||0;
-        if((_bFlags & 0x40)!==0) {
-          const _bOffs = ts - state.currentPull.startTime;
-          const _bNm = parts[2]||'';
-          if(_bNm && !state.currentPull.bossCasts.some(b=>b.spell===sn&&Math.abs(b.offsetMs-_bOffs)<5000))
+        const _bFlags=parseInt(parts[3],16)||0;
+        if((_bFlags&0x40)!==0) {
+          const _bOffs=ts-state.currentPull.startTime;
+          const _bNm=parts[2]||'';
+          if(_bNm && !state.currentPull.bossCasts.some(b=>b.spell===sn&&Math.abs(b.offsetMs-_bOffs)<8000))
             state.currentPull.bossCasts.push({offsetMs:_bOffs, bossName:_bNm, spell:sn, spellId:parts[9]});
         }
       }
@@ -1323,6 +1312,16 @@ function deltaParseLines(lines) {
       }
     } else if(ev==='SPELL_CAST_SUCCESS'||ev==='SPELL_CAST_START') {
       const srcGUID=parts[1],srcName=parts[2],spellId=parts[9],spellName=parts[10];
+      // Boss ability casts: fires once per actual cast regardless of how many players affected
+      if(state.currentPull && (srcGUID.startsWith('Creature-')||srcGUID.startsWith('Vehicle-')) && spellName) {
+        const _bFlags2 = parseInt(parts[3],16)||0;
+        if((_bFlags2 & 0x40)!==0) {
+          const _bOffs2 = ts - state.currentPull.startTime;
+          const _bNm2 = srcName||'';
+          if(_bNm2 && !state.currentPull.bossCasts.some(b=>b.spell===spellName&&Math.abs(b.offsetMs-_bOffs2)<8000))
+            state.currentPull.bossCasts.push({offsetMs:_bOffs2, bossName:_bNm2, spell:spellName, spellId});
+        }
+      }
       if(srcGUID&&srcGUID.startsWith('Player-')&&state.currentPull) {
         const offs=ts-state.currentPull.startTime;
         // Raid CDs
@@ -1602,9 +1601,10 @@ function rebuildAnalysis(){
   const sel=document.getElementById('boss-filter');
   const cur=sel.value;
   sel.innerHTML='<option value="">-- All Bosses --</option>'+bosses.map(b=>'<option value="'+escHtml(b)+'"'+(b===cur?' selected':'')+'>'+escHtml(b)+'</option>').join('');
-  filterBoss();
-  // precomputeAPLCache removed
+  // Compute boss-ability defaults BEFORE filterBoss() renders the CD timeline,
+  // so the timeline shows correct checkbox state on first load (no Settings visit needed).
   renderBossAbilitySettings();
+  filterBoss();
 }
 function renderCDTimeline() {
   const el = document.getElementById('an-cd-timeline');
@@ -1653,34 +1653,79 @@ function isBossAbilityEnabled(spell) {
   return _MIDNIGHT_ENABLED.has(spell);
 }
 function saveBossAbilities(){try{localStorage.setItem('wow_boss_abilities',JSON.stringify(_bossAbilityEnabled));}catch(e){}}
-const _MIDNIGHT_ENABLED=new Set(['Criticality','Dark Quasar','Dark Rune','Grim Symphony','Iris of Oblivion']);
-const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Termination Prism','Terminate','Dark Quasar']);
+const _MIDNIGHT_ENABLED=new Set(['Galvanize','Dark Rune','Grim Symphony','Termination Prism','Iris of Oblivion','Dark Meltdown']);
+const _MIDNIGHT_DISABLED=new Set(['Shattered Sky',"Heaven's Lance","Heaven's Glaives",'Terminate','Dark Quasar']);
 function loadBossAbilities(){
   try{const s=localStorage.getItem('wow_boss_abilities');if(s){_bossAbilityEnabled=JSON.parse(s);return;}}catch(e){}
   // No saved prefs — apply Midnight Falls defaults
   _MIDNIGHT_ENABLED.forEach(k=>_bossAbilityEnabled[k]=true);
 }
-function renderBossAbilitySettings(){
-  const el=document.getElementById('boss-ability-list'); if(!el)return;
-  const allBossSpells={};
-  for(const pull of analysisPulls)for(const c of(pull.bossCasts||[])){
-    if(!allBossSpells[c.spell])allBossSpells[c.spell]={spellId:c.spellId,boss:c.bossName,count:0};
-    allBossSpells[c.spell].count++;
-  }
-  if(!Object.keys(allBossSpells).length){el.innerHTML='<div style="font-size:12px;color:var(--text-dim)">No boss abilities found. Load logs first.</div>';return;}
-  for(const spell of Object.keys(allBossSpells)){
-    if(_bossAbilityEnabled[spell]===undefined){
-      // Default: enabled if in MIDNIGHT_ENABLED set, disabled otherwise
-      _bossAbilityEnabled[spell] = _MIDNIGHT_ENABLED.has(spell);
+// Compute per-encounter cast stats from analysisPulls, and fill in default
+// enabled/disabled state for any spell that doesn't have a saved preference yet.
+// Grouped by ENCOUNTER (pull.bossName), not by the individual unit that cast
+// the spell (c.bossName) — a fight can have multiple units/adds (e.g. the boss
+// itself plus a summoned add), but they all belong to the same encounter and
+// should be shown together rather than split into separate sub-lists.
+// Runs independently of whether the Settings panel is currently visible, so
+// the CD timeline shows the correct defaults even before Settings is opened.
+function computeBossAbilityDefaults(){
+  const bossData={}; // encounterName -> { pullNums:Set, spells:{spellName -> {spellId,count,units:Set}} }
+  for(const pull of analysisPulls){
+    const encounter = pull.bossName || 'Unknown';
+    for(const c of (pull.bossCasts||[])){
+      if(!bossData[encounter]) bossData[encounter]={pullNums:new Set(),spells:{}};
+      bossData[encounter].pullNums.add(pull.num);
+      if(!bossData[encounter].spells[c.spell]) bossData[encounter].spells[c.spell]={spellId:c.spellId,count:0,units:new Set()};
+      bossData[encounter].spells[c.spell].count++;
+      bossData[encounter].spells[c.spell].units.add(c.bossName);
     }
   }
-  el.innerHTML=Object.entries(allBossSpells).sort((a,b)=>a[0].localeCompare(b[0])).map(([spell,info])=>{
-    const enabled=_bossAbilityEnabled[spell]!==false;
-    const safeSpell=escHtml(spell).replace(/'/g,"\\'");
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'
-      +'<input type="checkbox" '+(enabled?'checked':'')+' onchange="toggleBossAbility(\''+safeSpell+'\')" style="cursor:pointer;width:14px;height:14px;flex-shrink:0">'
-      +'<span style="flex:1;font-size:12px">'+spellLink(spell,'',info.spellId)+'</span>'
-      +'<span style="color:var(--text-dim);font-size:10px;font-family:var(--font-mono)">'+escHtml(info.boss)+' &middot; '+info.count+'x</span>'
+
+  // Rare-cast threshold: a spell averaging at or below this many casts per pull
+  // (for that specific boss) is treated as "rare" and auto-enabled by default —
+  // but ONLY if the user hasn't already set a preference for it (saved in localStorage).
+  const RARE_CAST_THRESHOLD = 1.5;
+
+  for(const [bossName,data] of Object.entries(bossData)){
+    const pullCount=data.pullNums.size;
+    for(const [spell,info] of Object.entries(data.spells)){
+      if(_bossAbilityEnabled[spell]===undefined){
+        const avgPerPull = info.count / pullCount;
+        const isRare = avgPerPull <= RARE_CAST_THRESHOLD;
+        // Default: enabled if it's a known Midnight-Falls highlight, OR if it's rare
+        _bossAbilityEnabled[spell] = _MIDNIGHT_ENABLED.has(spell) || isRare;
+      }
+    }
+  }
+  return bossData;
+}
+
+function renderBossAbilitySettings(){
+  const bossData = computeBossAbilityDefaults();
+  const el=document.getElementById('boss-ability-list'); if(!el)return;
+
+  if(!Object.keys(bossData).length){el.innerHTML='<div style="font-size:12px;color:var(--text-dim)">No boss abilities found. Load logs first.</div>';return;}
+
+  el.innerHTML=Object.entries(bossData).sort((a,b)=>a[0].localeCompare(b[0])).map(([bossName,data])=>{
+    const pullCount=data.pullNums.size;
+    const spellRows=Object.entries(data.spells).sort((a,b)=>a[0].localeCompare(b[0])).map(([spell,info])=>{
+      const enabled=_bossAbilityEnabled[spell]!==false;
+      const safeSpell=escHtml(spell).replace(/'/g,"\\'");
+      const avgPerPull=(info.count/pullCount).toFixed(1);
+      // Show casting unit(s) only if it differs from the encounter name (e.g. an add)
+      const unitNames=[...info.units].filter(u=>u!==bossName);
+      const unitTag=unitNames.length?(' &middot; '+escHtml(unitNames.join(', '))):'';
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0 5px 4px;border-bottom:1px solid var(--border)">'
+        +'<input type="checkbox" '+(enabled?'checked':'')+' onchange="toggleBossAbility(\''+safeSpell+'\')" style="cursor:pointer;width:14px;height:14px;flex-shrink:0">'
+        +'<span style="flex:1;font-size:12px">'+spellLink(spell,'',info.spellId)+unitTag+'</span>'
+        +'<span style="color:var(--text-dim);font-size:10px;font-family:var(--font-mono)">'+info.count+'x &middot; &#216;'+avgPerPull+'/pull</span>'
+        +'</div>';
+    }).join('');
+    return '<div style="margin-bottom:14px">'
+      +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);padding:6px 4px;border-bottom:2px solid var(--gold-dim);margin-bottom:2px;display:flex;align-items:center;gap:8px">'
+      +escHtml(bossName)+'<span style="color:var(--text-dim);font-weight:400;font-family:var(--font-mono);text-transform:none;letter-spacing:0">('+pullCount+' Pulls)</span>'
+      +'</div>'
+      +spellRows
       +'</div>';
   }).join('');
   setTimeout(()=>enrichSpellLinks(el),100);
@@ -2825,9 +2870,7 @@ function renderDeathContext(death,pull,containerEl){
   });
 
   containerEl.innerHTML='<div style="margin-top:14px">'
-    +(()=>{const _pn=escHtml((death.name||'').split('-')[0]);return '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px;display:flex;align-items:center;gap:10px">&#128128; '+coloredPlayerName(death.name,pull)+' &#8212; letzte 5s vor Tod <span style="font-weight:400;color:var(--text-dim)">('+sortedCtx.length+' Events)</span>'
-    +'<button class="ctx-goto-btn" data-tab="perf" data-pull="'+pull.num+'" data-player="'+_pn+'" style="margin-left:auto;padding:2px 10px;font-size:10px;border-radius:4px;border:1px solid var(--border-lit);background:var(--bg-panel);color:var(--text-sec);cursor:pointer">&#128202; Performance</button>'
-    +'<button class="ctx-goto-btn" data-tab="apl" data-pull="'+pull.num+'" data-player="'+_pn+'" style="padding:2px 10px;font-size:10px;border-radius:4px;border:1px solid var(--border-lit);background:var(--bg-panel);color:var(--text-sec);cursor:pointer">&#127919; APL</button>'
+    +(()=>{return '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px;display:flex;align-items:center;gap:10px">&#128128; '+coloredPlayerName(death.name,pull)+' &#8212; letzte 5s vor Tod <span style="font-weight:400;color:var(--text-dim)">('+sortedCtx.length+' Events)</span>'
     +'</div>';})()
     +svgGraph
     +'<div class="ctx-log" id="ctx-log-'+uid+'">'
@@ -2838,9 +2881,6 @@ function renderDeathContext(death,pull,containerEl){
 
   setTimeout(() => {
     enrichSpellLinks(containerEl);
-    containerEl.querySelectorAll('.ctx-goto-btn').forEach(btn=>{
-      btn.onclick=()=>{ syncTabSelection(+btn.dataset.pull, btn.dataset.player); switchTab(btn.dataset.tab); };
-    });
   }, 100);
 
   // Hover sync after DOM insertion
@@ -3244,426 +3284,7 @@ const RESOURCE_NAMES = {
   '27':'Insanity','28':'Arcane Charges',
 };
 
-let perfSelectedPull = null;
-let perfSelectedPlayer = null;
-let perfSortCol = 'dps';
-let perfSortAsc = false;
 
-
-function renderPerfTab() {
-  const pullSel = document.getElementById('perf-pull-select');
-  const playerSel = document.getElementById('perf-player-select');
-  if (!pullSel || !playerSel) return;
-
-  pullSel.innerHTML = '<option value="">— Pull wählen —</option>'
-    + [...analysisPulls].reverse().map(p =>
-        `<option value="${p.num}"${perfSelectedPull===p.num?' selected':''}>#${p.num} ${escHtml(p.bossName)} (${formatDuration(p.endTime-p.startTime)}) ${p.success?'[Kill]':'[wipe]'}</option>`
-      ).join('');
-
-  const players = new Set();
-  for (const p of analysisPulls) {
-    if (p.perfData) {
-      Object.keys(p.perfData.damage||{}).forEach(n => players.add(n.split('-')[0]));
-      Object.keys(p.perfData.healing||{}).forEach(n => players.add(n.split('-')[0]));
-    }
-  }
-  playerSel.innerHTML = '<option value="">— players wählen —</option>'
-    + [...players].sort().map(n =>
-        `<option value="${escHtml(n)}"${perfSelectedPlayer===n?' selected':''}>${escHtml(n)}</option>`
-      ).join('');
-
-  renderPerfResult();
-}
-
-function perfBuildSummary(pull) {
-  const pd = pull.perfData;
-  const dur = (pull.endTime - pull.startTime) / 1000;
-
-  // Collect all player names
-  const allNames = new Set([
-    ...Object.keys(pd.damage||{}).map(n=>n.split('-')[0]),
-    ...Object.keys(pd.healing||{}).map(n=>n.split('-')[0]),
-    ...Object.keys(pd.casts||{}).map(n=>n.split('-')[0]),
-  ]);
-
-  return [...allNames].map(name => {
-    const pnorm = name.toLowerCase();
-
-    const dmgEntry = Object.entries(pd.damage||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-    const healEntry = Object.entries(pd.healing||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-    const castEntry = Object.entries(pd.casts||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-    const absEntry  = Object.entries(pd.absorbs||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-
-    const totalDmg  = dmgEntry?.[1]?.total || 0;
-    const totalHeal = healEntry?.[1]?.effective || 0;
-    const totalAbs  = absEntry?.[1] || 0;
-    const castList  = castEntry?.[1] || [];
-    const cpm = dur > 0 ? (castList.length / (dur / 60)) : 0;
-
-    return { name, totalDmg, totalHeal, totalAbs, cpm, castCount: castList.length,
-             dps: totalDmg/dur, hps: (totalHeal+totalAbs)/dur };
-  });
-}
-
-function renderPerfResult() {
-  const el = document.getElementById('perf-result');
-  if (!el) return;
-
-  if (!perfSelectedPull) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Wähle einen Pull um die Performance-Daten zu sehen.</p></div>';
-    return;
-  }
-  const pull = analysisPulls.find(p => p.num === perfSelectedPull);
-  if (!pull?.perfData) {
-    el.innerHTML = '<div class="empty"><p>None Performance-Daten. Lade Logs neu.</p></div>';
-    return;
-  }
-
-  const dur = (pull.endTime - pull.startTime) / 1000;
-  const summary = perfBuildSummary(pull);
-
-  // Sort
-  summary.sort((a,b) => {
-    const v = (perfSortAsc?1:-1);
-    return (a[perfSortCol]||0) > (b[perfSortCol]||0) ? v : -v;
-  });
-
-  const maxDps = Math.max(...summary.map(s=>s.dps), 1);
-  const maxHps = Math.max(...summary.map(s=>s.hps), 1);
-
-  function sortBtn(col, label) {
-    const active = perfSortCol === col;
-    const arrow = active ? (perfSortAsc ? ' ↑' : ' ↓') : '';
-    return `<span style="cursor:pointer;user-select:none;color:${active?'var(--gold)':'inherit'}" onclick="perfSort('${col}')">${label}${arrow}</span>`;
-  }
-
-  // ── Summary table ──────────────────────────────────────────────
-  let html = `<div class="card section">
-    <div class="card-title">⚔️ Pull #${pull.num} — ${escHtml(pull.bossName)} · ${formatDuration(pull.endTime-pull.startTime)}</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead><tr style="color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)">
-          <th style="padding:6px 8px;text-align:left">${sortBtn('name','players')}</th>
-          <th style="padding:6px 8px">${sortBtn('dps','DPS')}</th>
-          <th style="padding:6px 8px;width:200px">DPS Bar</th>
-          <th style="padding:6px 8px">${sortBtn('hps','HPS (eff+abs)')}</th>
-          <th style="padding:6px 8px;width:130px">HPS Bar</th>
-          <th style="padding:6px 8px">${sortBtn('cpm','CPM')}</th>
-        </tr></thead>
-        <tbody>
-          ${summary.map(s => {
-            const color = getPlayerClassColor(pull, s.name) || '#888';
-            const nameHtml = `<span style="color:${color};font-weight:600;text-shadow:0 0 6px rgba(0,0,0,0.9)">${escHtml(s.name)}</span>`;
-            const dpsBarW = (s.dps/maxDps*100).toFixed(1);
-            const hpsBarW = (s.hps/maxHps*100).toFixed(1);
-            const dpsBar = s.dps>0 ? `<div style="height:14px;border-radius:2px;overflow:hidden;background:var(--bg-deep)"><div style="height:100%;width:${dpsBarW}%;background:${color};opacity:0.7;border-radius:2px"></div></div>` : '';
-            const hpsBar = s.hps>0 ? `<div style="height:14px;border-radius:2px;overflow:hidden;background:var(--bg-deep)"><div style="height:100%;width:${hpsBarW}%;background:var(--green);opacity:0.7;border-radius:2px"></div></div>` : '';
-            const isSelected = perfSelectedPlayer === s.name;
-            return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;background:${isSelected?'rgba(200,168,75,0.08)':'transparent'}"
-              onclick="perfSelectPlayer('${escHtml(s.name)}')"
-              onmouseover="if('${escHtml(s.name)}'!=='${escHtml(perfSelectedPlayer||'')}')this.style.background='var(--bg-hover)'"
-              onmouseout="this.style.background='${isSelected?'rgba(200,168,75,0.08)':'transparent'}'">
-              <td style="padding:6px 8px">${nameHtml}</td>
-              <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:${color}">${s.dps>0?formatNum(Math.round(s.dps)):'—'}</td>
-              <td style="padding:4px 8px">${dpsBar}</td>
-              <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--green)">${s.hps>0?formatNum(Math.round(s.hps)):'—'}</td>
-              <td style="padding:4px 8px">${hpsBar}</td>
-              <td style="padding:6px 8px;text-align:right;font-family:var(--font-mono);color:var(--text-sec)">${s.cpm.toFixed(1)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  </div>`;
-
-  // ── Player detail ──────────────────────────────────────────────
-  if (perfSelectedPlayer) {
-    html += renderPlayerDetail(pull, perfSelectedPlayer, dur);
-  } else {
-    html += `<div class="empty" style="padding:20px"><p style="font-size:13px">Klick auf einen players für Details, oder ↑↓ Pfeiltasten</p></div>`;
-  }
-
-  el.innerHTML = html;
-  setTimeout(() => enrichSpellLinks(el), 100);
-}
-
-function renderPlayerDetail(pull, playerName, durSec) {
-  const pd = pull.perfData;
-  const pnorm = playerName.split('-')[0].toLowerCase();
-
-  const dmgEntry  = Object.entries(pd.damage||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-  const healEntry = Object.entries(pd.healing||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-  const castEntry = Object.entries(pd.casts||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-  const absEntry  = Object.entries(pd.absorbs||{}).find(([n])=>n.split('-')[0].toLowerCase()===pnorm);
-
-  const color = getPlayerClassColor(pull, playerName) || '#c8a84b';
-  const spec = detectPlayerSpec(pull, playerName);
-  const specLabel = spec ? spec.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) : 'Unbekannt';
-  const casts = castEntry?.[1] || [];
-  const totalDmg = dmgEntry?.[1]?.total || 0;
-  const totalHeal = healEntry?.[1]?.effective || 0;
-  const totalAbs = absEntry?.[1] || 0;
-  const dps = totalDmg / durSec;
-  const hps = (totalHeal + totalAbs) / durSec;
-  const cpm = durSec > 0 ? casts.length/(durSec/60) : 0;
-
-  // GCD efficiency
-  let idleTime = 0, lastCastT = 0;
-  for (const c of casts) {
-    const gap = (c.offsetMs - lastCastT)/1000;
-    if (lastCastT > 0 && gap > 1.6) idleTime += gap - 1.5;
-    lastCastT = c.offsetMs;
-  }
-  const gcdEff = Math.max(0, Math.min(100, 100 - (idleTime/durSec*100)));
-
-  let html = `<div class="card section" style="border-color:${color}44;margin-top:14px">
-    <div class="card-title" style="color:${color}">${coloredPlayerName(playerName,pull)}
-      <span style="font-size:10px;font-weight:400;color:var(--text-dim);margin-left:8px">${escHtml(specLabel)}</span>
-    </div>
-    <div class="grid-4" style="gap:12px;margin-bottom:16px">
-      ${dps>0?`<div class="stat-box"><div class="stat-label">DPS</div><div class="stat-value" style="font-size:22px;color:${color}">${formatNum(Math.round(dps))}</div><div class="stat-sub">${formatNum(totalDmg)} total</div></div>`:''}
-      ${hps>0?`<div class="stat-box"><div class="stat-label">HPS (eff+abs)</div><div class="stat-value green" style="font-size:22px">${formatNum(Math.round(hps))}</div><div class="stat-sub">${healEntry?`${Math.round((totalHeal/(totalHeal+totalAbs||1))*100)}% Heal / ${Math.round((totalAbs/(totalHeal+totalAbs||1))*100)}% Absorb`:'Nur Absorbs'}</div></div>`:''}
-      <div class="stat-box"><div class="stat-label">CPM</div><div class="stat-value" style="font-size:22px">${cpm.toFixed(1)}</div><div class="stat-sub">${casts.length} casts total</div></div>
-      <div class="stat-box"><div class="stat-label">GCD-Eff.</div><div class="stat-value" style="font-size:22px;color:${gcdEff>85?'var(--green)':gcdEff>70?'var(--gold)':'var(--red)'}">${gcdEff.toFixed(0)}%</div><div class="stat-sub">${idleTime.toFixed(1)}s idle</div></div>
-    </div>`;
-
-  // ── Damage split + Healing split side by side ─────────────────
-  const hasDmg = dmgEntry && Object.keys(dmgEntry[1].spells||{}).length > 0;
-  const hasHeal = healEntry && Object.keys(healEntry[1].spells||{}).length > 0;
-  if (hasDmg || hasHeal) {
-    html += `<div class="${(hasDmg&&hasHeal)?'grid-2':'grid-1'}" style="gap:14px;margin-bottom:14px">`;
-
-    if (hasDmg) {
-      const spells = Object.entries(dmgEntry[1].spells).sort((a,b)=>b[1].dmg-a[1].dmg);
-      const total = spells.reduce((s,[,d])=>s+d.dmg,0)||1;
-      html += `<div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:10px">⚔️ Damage Split</div>
-        ${spells.map(([sname,sd])=>{
-          const pct=(sd.dmg/total*100).toFixed(1);
-          const barW=Math.max(2,+pct);
-          return `<div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-size:12px;color:var(--text-main)">${spellLink(sname,'',sd.spellId)}</span>
-              <span style="font-size:11px;color:var(--text-sec);font-family:var(--font-mono);white-space:nowrap;margin-left:8px">${pct}% · ${formatNum(Math.round(sd.dmg/sd.hits||0))}/hit · ${sd.hits}x</span>
-            </div>
-            <div style="height:10px;background:var(--bg-deep);border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:${barW}%;background:${color};opacity:0.75;border-radius:3px"></div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-
-    if (hasHeal) {
-      const spells = Object.entries(healEntry[1].spells).sort((a,b)=>b[1].eff-a[1].eff);
-      const total = spells.reduce((s,[,d])=>s+d.eff,0)||1;
-      const ohTotal = spells.reduce((s,[,d])=>s+(d.raw-d.eff),0);
-      const ohPct = Math.round(ohTotal/(spells.reduce((s,[,d])=>s+d.raw,0)||1)*100);
-      html += `<div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:10px">💚 Healing Split <span style="font-weight:400;text-transform:none;color:var(--text-dim)">(${ohPct}% OH gesamt)</span></div>
-        ${spells.map(([sname,sd])=>{
-          const pct=(sd.eff/total*100).toFixed(1);
-          const oh=sd.raw>0?Math.round((sd.raw-sd.eff)/sd.raw*100):0;
-          const barW=Math.max(2,+pct);
-          return `<div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-size:12px;color:var(--text-main)">${spellLink(sname,'',sd.spellId)}</span>
-              <span style="font-size:11px;color:var(--text-sec);font-family:var(--font-mono);white-space:nowrap;margin-left:8px">${pct}% · ${oh}%OH · ${sd.hits}x</span>
-            </div>
-            <div style="height:10px;background:var(--bg-deep);border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:${barW}%;background:var(--green);opacity:0.7;border-radius:3px"></div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-    html += `</div>`;
-  }
-
-  // ── Defensive CDs ─────────────────────────────────────────────
-  if (casts.length > 0) {
-    const defMap = getCooldownMap(), raidSet = getRaidCDSet();
-    const defUsed = casts.filter(c=>defMap.has(c.spell)||raidSet.has(c.spell));
-    if (defUsed.length > 0) {
-      html += `<div style="margin-bottom:14px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:8px">🛡 Defensive CDs (${defUsed.length}x)</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${defUsed.map(c=>`<div style="background:var(--bg-deep);border:1px solid var(--border-lit);border-radius:6px;padding:5px 10px;font-size:12px">
-            ${spellLink(c.spell,'',c.spellId)} <span style="color:var(--text-dim);font-family:var(--font-mono)">@ ${formatDuration(c.offsetMs)}</span>
-          </div>`).join('')}
-        </div>
-      </div>`;
-    }
-  }
-
-
-    // ── Cast Timeline — per-spell rows (Raid-CD style) ──────────
-  if (casts.length > 0) {
-    const pullDurMs = pull.endTime - pull.startTime;
-
-    // Group casts by spell
-    const bySpell = {};
-    for (const c of casts) {
-      const sn = c.spell || 'Unknown';
-      if (!bySpell[sn]) bySpell[sn] = {entries:[], spellId:c.spellId};
-      bySpell[sn].entries.push(c);
-    }
-    // Sort spells by total casts descending, then alphabetically
-    const spells = Object.keys(bySpell).sort((a,b)=>
-      bySpell[b].entries.length - bySpell[a].entries.length || a.localeCompare(b)
-    );
-
-    const ROW_H = 26, PAD_L = 150, PAD_R = 10, PAD_T = 8, PAD_B = 24;
-    const W = 900, trackW = W - PAD_L - PAD_R;
-    const H = spells.length * ROW_H + PAD_T + PAD_B;
-    const tx = ms => PAD_L + Math.max(0, Math.min(1, ms/pullDurMs)) * trackW;
-    const tickStep = pullDurMs > 180000 ? 60000 : pullDurMs > 60000 ? 30000 : 15000;
-
-    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;background:var(--bg-deep);border-radius:6px">`;
-
-    // Grid + x-axis
-    for (let ms = 0; ms <= pullDurMs; ms += tickStep) {
-      const x = tx(ms).toFixed(1);
-      svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="#1e2530" stroke-width="1"/>`;
-      svg += `<text x="${x}" y="${H-6}" text-anchor="middle" font-size="9" fill="#4a5568">${formatDuration(ms)}</text>`;
-    }
-    // Separator
-    svg += `<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${H-PAD_B}" stroke="#252b36" stroke-width="1"/>`;
-
-    // Death markers
-    (pull.deaths||[]).filter(d=>d.name.split('-')[0].toLowerCase()===pnorm).forEach(d=>{
-      const x = tx(d.offsetMs).toFixed(1);
-      svg += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H-PAD_B}" stroke="rgba(192,57,43,0.55)" stroke-width="2"><title>☠ '+escHtml(d.name||' ')+' @ '+formatDuration(d.offsetMs)+(d.cause?' — '+escHtml(d.cause):'')+'</title></line>`;
-      svg += `<text x="${x}" y="${PAD_T+10}" text-anchor="middle" font-size="9" fill="rgba(192,57,43,0.8)">&#128128;</text>`;
-    });
-
-    // Rows per spell
-    spells.forEach((spell, idx) => {
-      const {entries, spellId} = bySpell[spell];
-      const y = PAD_T + idx * ROW_H;
-      const midY = y + ROW_H / 2;
-      const count = entries.length;
-
-      // Alternating row bg
-      if (idx % 2 === 0) svg += `<rect x="0" y="${y}" width="${W}" height="${ROW_H}" fill="rgba(255,255,255,0.012)"/>`;
-
-      // Count badge only in SVG (label is HTML overlay above)
-      svg += `<text x="${PAD_L-8}" y="${y+ROW_H-3}" text-anchor="end" font-size="8" fill="rgba(255,255,255,0.3)">${count}x</text>`;
-
-      // Cast dots
-      let lastX = -999;
-      entries.sort((a,b)=>a.offsetMs-b.offsetMs).forEach(c => {
-        const x = tx(c.offsetMs);
-        // Merge overlapping dots (< 3px apart) into a brighter dot
-        if (x - lastX < 3) {
-          // just a slightly brighter circle at same spot
-        } else {
-          svg += `<circle cx="${x.toFixed(1)}" cy="${midY}" r="4" fill="${color}" opacity="0.85">
-            <title>${escHtml(spell)} @ ${formatFightTime(c.offsetMs)}</title>
-          </circle>`;
-          lastX = x;
-        }
-      });
-    });
-
-    svg += '</svg>';
-
-    const _spellOverlay = '<div style="position:absolute;left:0;top:28px;width:'+PAD_L+'px;pointer-events:none">'
-      + spells.map((sp,si2) => {
-          const midY2 = PAD_T + si2 * ROW_H + ROW_H/2;
-          const sid2 = bySpell[sp].spellId;
-          return '<div style="position:absolute;right:8px;top:'+(midY2-8)+'px;font-size:11px;font-weight:500;color:'+color+';white-space:nowrap;max-width:'+(PAD_L-12)+'px;overflow:hidden;text-overflow:ellipsis;text-align:right;pointer-events:auto;line-height:1">'+spellLink(sp,'rcd-spell-link',sid2)+'</div>';
-        }).join('')
-      + '</div>';
-    html += '<div style="margin-top:14px">'
-      + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:6px">&#9201; Cast-Timeline &mdash; '+casts.length+' Casts &middot; '+cpm.toFixed(1)+' CPM &middot; '+spells.length+' Spells</div>'
-      + '<div style="position:relative">'+_spellOverlay+svg+'</div>'
-      + '</div>';
-  }
-
-  html += '</div>';
-  return html;
-}
-
-function perfSort(col) {
-  if (perfSortCol === col) perfSortAsc = !perfSortAsc;
-  else { perfSortCol = col; perfSortAsc = false; }
-  renderPerfResult();
-}
-
-function perfSelectPlayer(name) {
-  perfSelectedPlayer = perfSelectedPlayer === name ? null : name;
-  // Mirror to selectedPlayer so CD timeline in Analyze tab is filtered
-  selectedPlayer = perfSelectedPlayer;
-  if (perfSelectedPlayer && perfSelectedPull) {
-    syncTabSelection(perfSelectedPull, perfSelectedPlayer);
-  }
-  renderPerfResult();
-  // Refresh CD timeline
-  if (selectedPullNum) renderCDTimeline();
-}
-
-function perfPullChanged() {
-  const v = document.getElementById('perf-pull-select').value;
-  perfSelectedPull = v ? parseInt(v) : null;
-  if (perfSelectedPlayer && perfSelectedPull) {
-    const pull = analysisPulls.find(p => p.num === perfSelectedPull);
-    const exists = pull?.perfData && (
-      Object.keys(pull.perfData.damage||{}).some(n=>n.split('-')[0]===perfSelectedPlayer) ||
-      Object.keys(pull.perfData.casts||{}).some(n=>n.split('-')[0]===perfSelectedPlayer)
-    );
-    if (!exists) perfSelectedPlayer = null;
-  }
-  renderPerfResult();
-}
-
-function perfPlayerChanged() {
-  perfSelectedPlayer = document.getElementById('perf-player-select').value || null;
-  renderPerfResult();
-}
-
-// Keyboard navigation: ←→ for pulls, ↑↓ for players in perf tab
-document.addEventListener('keydown', e => {
-  const active = document.querySelector('.view.active');
-  if (!active || active.id !== 'view-perf') return;
-  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
-
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-    e.preventDefault();
-    if (!perfSelectedPull) return;
-    const idx = analysisPulls.findIndex(p => p.num === perfSelectedPull);
-    const dir = e.key === 'ArrowRight' ? 1 : -1;
-    const next = analysisPulls[idx + dir];
-    if (next) {
-      perfSelectedPull = next.num;
-      if (perfSelectedPlayer) {
-        const np = analysisPulls.find(p=>p.num===next.num);
-        const exists = np?.perfData && (
-          Object.keys(np.perfData.damage||{}).some(n=>n.split('-')[0]===perfSelectedPlayer) ||
-          Object.keys(np.perfData.casts||{}).some(n=>n.split('-')[0]===perfSelectedPlayer)
-        );
-        if (!exists) perfSelectedPlayer = null;
-      }
-      renderPerfTab();
-    }
-  }
-
-  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-    e.preventDefault();
-    const pull = analysisPulls.find(p => p.num === perfSelectedPull);
-    if (!pull?.perfData) return;
-    const summary = perfBuildSummary(pull).sort((a,b)=>b.dps-a.dps);
-    const names = summary.map(s=>s.name);
-    if (!names.length) return;
-    const curIdx = names.indexOf(perfSelectedPlayer);
-    const dir = e.key === 'ArrowDown' ? 1 : -1;
-    const newIdx = curIdx === -1 ? 0 : Math.max(0, Math.min(names.length-1, curIdx+dir));
-    perfSelectedPlayer = names[newIdx];
-    renderPerfResult();
-  }
-});
-
-// ── APL ──────────────────────────────────────────────────────────
 
 // ── KEYBOARD NAVIGATION ───────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
@@ -3759,16 +3380,6 @@ function _updateHeaderPullInfo(pull) {
   panel.style.display = 'block';
 }
 // ── GOTO TAB BUTTON DELEGATION ──────────────────────────────────
-document.addEventListener('click', e => {
-  const btn = e.target.closest('.goto-tab-btn');
-  if (!btn) return;
-  const tab    = btn.dataset.tab;
-  const pullN  = btn.dataset.pull ? parseInt(btn.dataset.pull) : null;
-  const player = btn.dataset.player || null;
-  if (pullN !== null || player !== null) syncTabSelection(pullN, player);
-  if (tab) switchTab(tab);
-});
-
 // ── INIT ─────────────────────────────────────────────────────────
 loadCooldowns();
 loadRaidCDs();
@@ -4288,14 +3899,22 @@ function wclMapToPull(fight, castEvents, deathEvents, combatantEvents, actorMap,
   }
 
   // Boss casts
+  // WCL emits TWO events for spells with a cast bar: 'begincast' (start) and
+  // 'cast' (completion). We only want one entry per actual cast — skip
+  // 'begincast' and keep only 'cast' (matches local-log behavior of using
+  // SPELL_CAST_SUCCESS, not SPELL_CAST_START, as the single source of truth).
+  // Instant-cast spells only ever emit 'cast', so they're unaffected.
   const bossCasts = [];
   for (const ev of castEvents) {
     if (ev.fake) continue;
+    if (ev.type === 'begincast') continue;
     if (isFriendly(ev)) continue;
     const actor = actorMap[ev.sourceID];
     if (actor?.type === 'Player') continue;
     const offsetMs = ev.timestamp - fightStart;
     const { name: spell, id: spellId } = getSpell(ev);
+    // Extra safety net: dedupe by spell+time in case WCL still doubles up
+    if (bossCasts.some(b => b.spell === spell && Math.abs(b.offsetMs - offsetMs) < 8000)) continue;
     bossCasts.push({ offsetMs, bossName: getSourceName(ev) || actor?.name || 'Boss', spell, spellId });
   }
 
@@ -4338,22 +3957,39 @@ function wclMapToPull(fight, castEvents, deathEvents, combatantEvents, actorMap,
       playersMap[actor.name] = { name: actor.name, class: actor.subType||'' };
   }
 
-  // Build phase segments from phaseTransitions
+  // Build phase segments. Two sources, in priority order:
+  // 1. WCL's own fight.phaseTransitions (if WCL has encounter phase data for this boss)
+  // 2. Our BOSS_PHASE_TRIGGERS map, detected from bossCasts (works even for brand-new
+  //    encounters WCL hasn't added phase metadata for yet, e.g. a fresh tier's first raid)
   const PHASE_COLORS = ['#e05050','#c8a84b','#4b8bc8','#dddddd','#9b59b6','#c8a84b','#2ecc71'];
-  // phaseMeta passed as parameter
+  let transitions = fight.phaseTransitions || [];
+
+  // Fallback: derive transitions from our own trigger map via bossCasts
+  if (!transitions.length) {
+    const detected = [];
+    for (const bc of bossCasts) {
+      const trig = bc.spellId ? BOSS_PHASE_TRIGGERS.get(parseInt(bc.spellId)) : null;
+      if (!trig) continue;
+      const already = detected.some(d => d.id === trig.id && Math.abs(d._startMsOnly - bc.offsetMs) < 5000);
+      if (!already) detected.push({ id: trig.id, startTime: bc.offsetMs + fightStart, _startMsOnly: bc.offsetMs, _meta: trig });
+    }
+    detected.sort((a,b) => a.startTime - b.startTime);
+    transitions = detected;
+  }
+
+  // phaseMeta passed as parameter (from WCL's EncounterPhases, may be empty)
   const phases = [];
-  const transitions = fight.phaseTransitions || [];
   for (let pi = 0; pi < transitions.length; pi++) {
     const t = transitions[pi];
     const nextT = transitions[pi+1];
-    const meta = phaseMeta.find(m=>m.id===t.id) || {};
+    const meta = phaseMeta.find(m=>m.id===t.id) || t._meta || {};
     const startMs = t.startTime - fightStart;
     const endMs = nextT ? nextT.startTime - fightStart : pullDurMs;
     phases.push({
       id: t.id,
       name: meta.name || (meta.isIntermission ? 'Intermission' : 'P'+t.id),
       isIntermission: !!meta.isIntermission,
-      color: PHASE_COLORS[(t.id-1) % PHASE_COLORS.length] || '#888',
+      color: meta.color || PHASE_COLORS[(t.id-1) % PHASE_COLORS.length] || '#888',
       startMs,
       endMs
     });
@@ -4364,7 +4000,8 @@ function wclMapToPull(fight, castEvents, deathEvents, combatantEvents, actorMap,
     startTime: reportStartTime + fightStart,
     endTime: reportStartTime + fightEnd,
     bossName: fight.name,
-    _phases: phases.length ? phases : null,
+    _phases: phases,
+    phaseTransitions: transitions, // marker: always an array, even if empty (= P1 wipe)
     _wclMeta: null, // set after return by caller with {code, fightId, fightStart, reportStart}
     success: fight.kill,
     pullDurMs,
@@ -4456,8 +4093,8 @@ async function wclImportReport() {
     // Enable file separators if multiple reports
     _wclMultiSource = new Set(pulls.map(p=>p.sourceFile)).size > 1;
     selectedPullNum = null;
-    renderAnalysis(analysisPulls);
     renderBossAbilitySettings();
+    renderAnalysis(analysisPulls);
     setStatus(`✓ ${pulls.length} Pulls geladen — ${report.title}`);
 
     // Switch to analysis tab
@@ -4638,9 +4275,10 @@ async function wclImportGuild() {
     // Use cached reports from wclLoadZones, filter by zone and weeks
     const cutoff = Date.now() - weeks * 7 * 24 * 3600 * 1000;
     const allReports = window._wclReports || [];
-    const reports = allReports.filter(r =>
-      (!zoneId || r.zone?.id === zoneId) && r.startTime >= cutoff
-    );
+    // Don't filter by report.zone — a single report can span multiple zones/raids
+    // (e.g. started in one raid, switched to another). The fights themselves
+    // are filtered by encounterID below, which is the reliable source of truth.
+    const reports = allReports.filter(r => r.startTime >= cutoff);
     if (!reports.length) { setStatus('Keine Reports im gewählten Zeitraum', true); return; }
     setStatus(`${reports.length} Reports gefunden — analysiere Fights...`);
 
@@ -4676,8 +4314,8 @@ async function wclImportGuild() {
     // Enable file separators if multiple reports
     _wclMultiSource = new Set(pulls.map(p=>p.sourceFile)).size > 1;
     selectedPullNum = null;
-    renderAnalysis(analysisPulls);
     renderBossAbilitySettings();
+    renderAnalysis(analysisPulls);
     setStatus(`✓ ${pulls.length} Pulls von ${reports.length} Reports geladen`);
     switchTab('analysis');
   } catch(e) {
@@ -4689,3 +4327,4 @@ async function wclImportGuild() {
 </script>
 </body>
 </html>
+
